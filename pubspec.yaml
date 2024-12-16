@@ -1,0 +1,26 @@
+name: graphql_client_flutter
+description: A powerful, flexible, and feature-rich GraphQL Client Flutter for Flutter applications.
+version: 1.0.0
+homepage: https://github.com/Ahmed-Reda-Dev/graphql_client_flutter
+repository: https://github.com/Ahmed-Reda-Dev/graphql_client_flutter
+issue_tracker: https://github.com/Ahmed-Reda-Dev/graphql_client_flutter/issues
+documentation: https://pub.dev/documentation/graphql_client/latest/graphql_client/graphql_client-library.html
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  crypto: ^3.0.6
+  dio: ^5.7.0
+  path_provider: ^2.1.5
+  web_socket_channel: ^3.0.1
+
+
+dev_dependencies:
+  build_runner: ^2.4.13
+  lints: ^5.0.0
+  mockito: ^5.4.4
+  test: ^1.24.0
+
+
+license: MIT

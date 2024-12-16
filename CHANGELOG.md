@@ -5,7 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.1] - 2024-12-16
+## [1.0.1+1]
+
+### Fixed
+- **Bug Fix:** Resolved an issue where the client would throw a `Null` error when attempting to access the SDK directory during documentation generation. This fix ensures smoother `dartdoc` executions without runtime type errors.
+- **Dependency Update:** Updated `path_provider` to version `^2.1.5` to ensure compatibility with the latest Flutter SDKs.
+
+### Improved
+- **Performance:** Enhanced caching mechanisms to improve query execution speed and reduce unnecessary network calls.
+- **Logging:** Improved logging details for better debugging and monitoring of GraphQL operations.
+
+### Miscellaneous
+- **Documentation:** Updated the usage examples in `README.md` to provide clearer guidance on configuring and utilizing the GraphQL client.
+- **Code Quality:** Applied linting fixes and code formatting to adhere to Dart's best practices, ensuring maintainable and readable codebase.
+
+
+## [1.0.1]
 
 ### Added
 - **Initial Release**:

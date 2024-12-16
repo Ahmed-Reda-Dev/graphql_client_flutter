@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="API docs for the CachePolicy enum from the graphql_client_flutter library, for the Dart programming language.">
+  <title>CachePolicy enum - graphql_client_flutter library - Dart API</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="../static-assets/github.css?v1">
+  <link rel="stylesheet" href="../static-assets/styles.css?v1">
+  <link rel="icon" href="../static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="../" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li><a href="../index.html">graphql_client_flutter</a></li>
+    <li><a href="../graphql_client_flutter">graphql_client_flutter.dart</a></li>
+    <li class="self-crumb">CachePolicy enum</li>
+  </ol>
+  <div class="self-name">CachePolicy</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <div class="toggle" id="theme-button" title="Toggle brightness">
+    <label for="theme">
+      <input type="checkbox" id="theme" value="light-theme">
+      <span id="dark-theme-button" class="material-symbols-outlined">
+        dark_mode
+      </span>
+      <span id="light-theme-button" class="material-symbols-outlined">
+        light_mode
+      </span>
+    </label>
+  </div>
+</header>
+<main>
+<div
+    id="dartdoc-main-content"
+    class="main-content"
+    data-above-sidebar="graphql_client_flutter&#47;graphql_client_flutter-library-sidebar.html"
+    data-below-sidebar="graphql_client_flutter&#47;CachePolicy-enum-sidebar.html">
+    <div>
+
+      <h1>
+        <span class="kind-enum">CachePolicy</span>
+        enum 
+ 
+
+      </h1>
+    </div>
+
+    
+<section class="desc markdown">
+  <p>Defines the caching behavior for GraphQL operations</p>
+</section>
+
+
+      <section>
+        <dl class="dl-horizontal">
+          
+  <dt>Inheritance</dt>
+  <dd>
+    <ul class="gt-separated dark eNum-relationships">
+      <li><a href="https://api.flutter.dev/flutter/dart-core/Object-class.html">Object</a></li>
+        <li><a href="https://api.flutter.dev/flutter/dart-core/Enum-class.html">Enum</a></li>
+      <li>CachePolicy</li>
+    </ul>
+  </dd>
+
+          
+          
+          
+  <dt>Available extensions</dt>
+  <dd><ul class="comma-separated clazz-relationships">
+      <li><a href="../graphql_client_flutter/CachePolicyExtension.html">CachePolicyExtension</a></li>
+      <li><a href="https://api.flutter.dev/flutter/dart-core/EnumName.html">EnumName</a></li>
+  </ul></dd>
+          
+
+
+        </dl>
+      </section>
+
+      <section class="summary offset-anchor" id="values">
+        <h2>Values</h2>
+        <dl class="properties">
+            <dt id="networkOnly" class="constant">
+    <span class="name ">networkOnly</span>
+  <span class="signature">&#8594; const <a href="../graphql_client_flutter/CachePolicy.html">CachePolicy</a></span>
+  
+
+</dt>
+<dd>
+  <p>Always fetch from network and don't cache the response
+Use this when you need real-time data and don't want any caching</p>
+  
+
+</dd>
+
+            <dt id="cacheFirst" class="constant">
+    <span class="name ">cacheFirst</span>
+  <span class="signature">&#8594; const <a href="../graphql_client_flutter/CachePolicy.html">CachePolicy</a></span>
+  
+
+</dt>
+<dd>
+  <p>Try to get data from cache first, if not found or expired, fetch from network
+This is useful for optimizing performance and reducing network calls</p>
+  
+
+</dd>
+
+            <dt id="cacheOnly" class="constant">
+    <span class="name ">cacheOnly</span>
+  <span class="signature">&#8594; const <a href="../graphql_client_flutter/CachePolicy.html">CachePolicy</a></span>
+  
+
+</dt>
+<dd>
+  <p>Only fetch from cache, throw error if data is not found or expired
+Use this when you want to work offline or ensure using only cached data</p>
+  
+
+</dd>
+
+            <dt id="networkFirst" class="constant">
+    <span class="name ">networkFirst</span>
+  <span class="signature">&#8594; const <a href="../graphql_client_flutter/CachePolicy.html">CachePolicy</a></span>
+  
+
+</dt>
+<dd>
+  <p>Try network first, use cache as fallback if network fails
+Useful for ensuring fresh data while having a fallback</p>
+  
+
+</dd>
+
+            <dt id="cacheAndNetwork" class="constant">
+    <span class="name ">cacheAndNetwork</span>
+  <span class="signature">&#8594; const <a href="../graphql_client_flutter/CachePolicy.html">CachePolicy</a></span>
+  
+
+</dt>
+<dd>
+  <p>Return cache data immediately, then update from network in background
+Best for immediate UI updates while ensuring eventual consistency</p>
+  
+
+</dd>
+
+            <dt id="mergeNetworkAndCache" class="constant">
+    <span class="name ">mergeNetworkAndCache</span>
+  <span class="signature">&#8594; const <a href="../graphql_client_flutter/CachePolicy.html">CachePolicy</a></span>
+  
+
+</dt>
+<dd>
+  <p>Merge network response with cached data
+Useful for partial updates while maintaining complete cached objects</p>
+  
+
+</dd>
+
+            <dt id="cacheOnError" class="constant">
+    <span class="name ">cacheOnError</span>
+  <span class="signature">&#8594; const <a href="../graphql_client_flutter/CachePolicy.html">CachePolicy</a></span>
+  
+
+</dt>
+<dd>
+  <p>Cache data only if network request fails
+Helps in implementing offline-first functionality</p>
+  
+
+</dd>
+
+            <dt id="preferCache" class="constant">
+    <span class="name ">preferCache</span>
+  <span class="signature">&#8594; const <a href="../graphql_client_flutter/CachePolicy.html">CachePolicy</a></span>
+  
+
+</dt>
+<dd>
+  <p>Prefer cache but refresh if expired
+Balance between fresh data and performance</p>
+  
+
+</dd>
+
+            <dt id="customValidation" class="constant">
+    <span class="name ">customValidation</span>
+  <span class="signature">&#8594; const <a href="../graphql_client_flutter/CachePolicy.html">CachePolicy</a></span>
+  
+
+</dt>
+<dd>
+  <p>Custom validation for cache entries
+Allows implementing domain-specific caching rules</p>
+  
+
+</dd>
+
+            <dt id="noCache" class="constant">
+    <span class="name ">noCache</span>
+  <span class="signature">&#8594; const <a href="../graphql_client_flutter/CachePolicy.html">CachePolicy</a></span>
+  
+
+</dt>
+<dd>
+  <p>No caching at all, always bypass cache
+Use for sensitive or temporary data</p>
+  
+
+</dd>
+
+            <dt id="backgroundRefresh" class="constant">
+    <span class="name ">backgroundRefresh</span>
+  <span class="signature">&#8594; const <a href="../graphql_client_flutter/CachePolicy.html">CachePolicy</a></span>
+  
+
+</dt>
+<dd>
+  <p>Cache with background refresh
+Periodically update cache in background while serving cached data</p>
+  
+
+</dd>
+
+        </dl>
+      </section>
+
+    
+  <section
+      class="summary offset-anchor inherited"
+      id="instance-properties">
+    <h2>Properties</h2>
+    <dl class="properties">
+        <dt id="canReadFromCache" class="property">
+  <span class="name"><a href="../graphql_client_flutter/CachePolicyExtension/canReadFromCache.html">canReadFromCache</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a></span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../graphql_client_flutter/CachePolicy.html">CachePolicy</a>,
+        provided by the <a href="../graphql_client_flutter/CachePolicyExtension.html">CachePolicyExtension</a> extension</span>
+      </p>
+  Whether this policy allows reading from cache
+  <div class="features"><span class="feature">no setter</span></div>
+
+</dd>
+
+        <dt id="canWriteToCache" class="property">
+  <span class="name"><a href="../graphql_client_flutter/CachePolicyExtension/canWriteToCache.html">canWriteToCache</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a></span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../graphql_client_flutter/CachePolicy.html">CachePolicy</a>,
+        provided by the <a href="../graphql_client_flutter/CachePolicyExtension.html">CachePolicyExtension</a> extension</span>
+      </p>
+  Whether this policy allows writing to cache
+  <div class="features"><span class="feature">no setter</span></div>
+
+</dd>
+
+        <dt id="defaultTtl" class="property">
+  <span class="name"><a href="../graphql_client_flutter/CachePolicyExtension/defaultTtl.html">defaultTtl</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/Duration-class.html">Duration</a></span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../graphql_client_flutter/CachePolicy.html">CachePolicy</a>,
+        provided by the <a href="../graphql_client_flutter/CachePolicyExtension.html">CachePolicyExtension</a> extension</span>
+      </p>
+  Default TTL (Time To Live) for this cache policy
+  <div class="features"><span class="feature">no setter</span></div>
+
+</dd>
+
+        <dt id="hashCode" class="property inherited">
+  <span class="name"><a href="https://api.flutter.dev/flutter/dart-core/Object/hashCode.html">hashCode</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/int-class.html">int</a></span>
+  
+
+</dt>
+<dd class="inherited">
+  The hash code for this object.
+  <div class="features"><span class="feature">no setter</span><span class="feature">inherited</span></div>
+
+</dd>
+
+        <dt id="index" class="property inherited">
+  <span class="name"><a href="https://api.flutter.dev/flutter/dart-core/Enum/index.html">index</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/int-class.html">int</a></span>
+  
+
+</dt>
+<dd class="inherited">
+  A numeric identifier for the enumerated value.
+  <div class="features"><span class="feature">no setter</span><span class="feature">inherited</span></div>
+
+</dd>
+
+        <dt id="name" class="property">
+  <span class="name"><a href="https://api.flutter.dev/flutter/dart-core/EnumName/name.html">name</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a></span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="https://api.flutter.dev/flutter/dart-core/Enum-class.html">Enum</a>,
+        provided by the <a href="https://api.flutter.dev/flutter/dart-core/EnumName.html">EnumName</a> extension</span>
+      </p>
+  The name of the enum value.
+  <div class="features"><span class="feature">no setter</span></div>
+
+</dd>
+
+        <dt id="requiresNetwork" class="property">
+  <span class="name"><a href="../graphql_client_flutter/CachePolicyExtension/requiresNetwork.html">requiresNetwork</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a></span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../graphql_client_flutter/CachePolicy.html">CachePolicy</a>,
+        provided by the <a href="../graphql_client_flutter/CachePolicyExtension.html">CachePolicyExtension</a> extension</span>
+      </p>
+  Whether this policy requires network access
+  <div class="features"><span class="feature">no setter</span></div>
+
+</dd>
+
+        <dt id="retentionPriority" class="property">
+  <span class="name"><a href="../graphql_client_flutter/CachePolicyExtension/retentionPriority.html">retentionPriority</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/int-class.html">int</a></span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../graphql_client_flutter/CachePolicy.html">CachePolicy</a>,
+        provided by the <a href="../graphql_client_flutter/CachePolicyExtension.html">CachePolicyExtension</a> extension</span>
+      </p>
+  Priority level for cache invalidation
+Higher number means higher priority for keeping in cache
+  <div class="features"><span class="feature">no setter</span></div>
+
+</dd>
+
+        <dt id="runtimeType" class="property inherited">
+  <span class="name"><a href="https://api.flutter.dev/flutter/dart-core/Object/runtimeType.html">runtimeType</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/Type-class.html">Type</a></span>
+  
+
+</dt>
+<dd class="inherited">
+  A representation of the runtime type of the object.
+  <div class="features"><span class="feature">no setter</span><span class="feature">inherited</span></div>
+
+</dd>
+
+        <dt id="supportsBackgroundRefresh" class="property">
+  <span class="name"><a href="../graphql_client_flutter/CachePolicyExtension/supportsBackgroundRefresh.html">supportsBackgroundRefresh</a></span>
+  <span class="signature">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a></span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../graphql_client_flutter/CachePolicy.html">CachePolicy</a>,
+        provided by the <a href="../graphql_client_flutter/CachePolicyExtension.html">CachePolicyExtension</a> extension</span>
+      </p>
+  Whether this policy supports background refresh
+  <div class="features"><span class="feature">no setter</span></div>
+
+</dd>
+
+    </dl>
+  </section>
+
+    
+  <section
+      class="summary offset-anchor inherited"
+      id="instance-methods">
+    <h2>Methods</h2>
+    <dl class="callables">
+        <dt id="noSuchMethod" class="callable inherited">
+  <span class="name"><a href="https://api.flutter.dev/flutter/dart-core/Object/noSuchMethod.html">noSuchMethod</a></span><span class="signature">(<wbr><span class="parameter" id="noSuchMethod-param-invocation"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/Invocation-class.html">Invocation</a></span> <span class="parameter-name">invocation</span></span>)
+    <span class="returntype parameter">&#8594; dynamic</span>
+  </span>
+  
+
+</dt>
+<dd class="inherited">
+  Invoked when a nonexistent method or property is accessed.
+  <div class="features"><span class="feature">inherited</span></div>
+
+</dd>
+
+        <dt id="toString" class="callable inherited">
+  <span class="name"><a href="https://api.flutter.dev/flutter/dart-core/Object/toString.html">toString</a></span><span class="signature">(<wbr>)
+    <span class="returntype parameter">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd class="inherited">
+  A string representation of this object.
+  <div class="features"><span class="feature">inherited</span></div>
+
+</dd>
+
+    </dl>
+  </section>
+    
+  <section
+      class="summary offset-anchor inherited"
+      id="operators">
+    <h2>Operators</h2>
+    <dl class="callables">
+        <dt id="operator ==" class="callable inherited">
+  <span class="name"><a href="https://api.flutter.dev/flutter/dart-core/Object/operator_equals.html">operator ==</a></span><span class="signature">(<wbr><span class="parameter" id="==-param-other"><span class="type-annotation"><a href="https://api.flutter.dev/flutter/dart-core/Object-class.html">Object</a></span> <span class="parameter-name">other</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.flutter.dev/flutter/dart-core/bool-class.html">bool</a></span>
+  </span>
+  
+
+</dt>
+<dd class="inherited">
+  The equality operator.
+  <div class="features"><span class="feature">inherited</span></div>
+
+</dd>
+
+    </dl>
+  </section>
+    
+    
+    
+
+  <section class="summary offset-anchor" id="constants">
+    <h2>Constants</h2>
+    <dl class="properties">
+        <dt id="values" class="constant">
+    <span class="name "><a href="../graphql_client_flutter/CachePolicy/values-constant.html">values</a></span>
+  <span class="signature">&#8594; const <a href="https://api.flutter.dev/flutter/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../graphql_client_flutter/CachePolicy.html">CachePolicy</a></span>&gt;</span></span>
+  
+
+</dt>
+<dd>
+  A constant List of the values in this enum, in order of their declaration.
+  
+
+</dd>
+
+    </dl>
+  </section>
+</div><!-- /.main-content -->
+<div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+  <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li><a href="../index.html">graphql_client_flutter</a></li>
+    <li><a href="../graphql_client_flutter">graphql_client_flutter</a></li>
+    <li class="self-crumb">CachePolicy enum</li>
+</ol>
+
+  <h5>graphql_client_flutter library</h5>
+  <div id="dartdoc-sidebar-left-content"></div>
+</div>
+<div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+</div><!-- /.sidebar-offcanvas -->
+</main>
+<footer>
+  <span class="no-break">
+    graphql_client_flutter
+      1.0.0
+  </span>
+  
+</footer>
+
+
+<script src="../static-assets/highlight.pack.js?v1"></script>
+<script src="../static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+

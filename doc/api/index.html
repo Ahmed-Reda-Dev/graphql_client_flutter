@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="graphql_client_flutter API docs, for the Dart programming language.">
+  <title>graphql_client_flutter - Dart API docs</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="static-assets/github.css?v1">
+  <link rel="stylesheet" href="static-assets/styles.css?v1">
+  <link rel="icon" href="static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li><a href="https://github.com/Ahmed-Reda-Dev/graphql_client_flutter">graphql_client_flutter package</a></li>
+  </ol>
+  <div class="self-name">graphql_client_flutter</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <div class="toggle" id="theme-button" title="Toggle brightness">
+    <label for="theme">
+      <input type="checkbox" id="theme" value="light-theme">
+      <span id="dark-theme-button" class="material-symbols-outlined">
+        dark_mode
+      </span>
+      <span id="light-theme-button" class="material-symbols-outlined">
+        light_mode
+      </span>
+    </label>
+  </div>
+</header>
+<main>
+  <div id="dartdoc-main-content" class="main-content">
+      
+<section class="desc markdown">
+  <h1 id="graphql-client-flutter">GraphQL Client Flutter</h1>
+<p>A powerful, flexible, and feature-rich GraphQL client for Flutter applications. Simplify interactions with GraphQL APIs with built-in caching, error handling, real-time subscriptions, batch operations, and more.</p>
+<p><img src="https://img.shields.io/badge/flutter-#3952F5.svg?logo=flutter&amp;logoColor=white" alt="Flutter">
+<img src="https://img.shields.io/badge/dart-#0175C2.svg?logo=dart&amp;logoColor=white" alt="Dart">
+<a href="https://pub.dev/packages/graphql_client_flutter"><img src="https://img.shields.io/pub/v/graphql_client_flutter.svg" alt="Pub Version"></a>
+<a href="LICENSE"><img src="https://img.shields.io/github/license/Ahmed-Reda-Dev/graphql_client_flutter/graphql_client_flutter.svg" alt="LICENSE"></a>
+<a href="https://github.com/Ahmed-Reda-Dev/graphql_client_flutter/actions"><img src="https://github.com/Ahmed-Reda-Dev/graphql_client_flutter/workflows/CI/badge.svg" alt="CI"></a></p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ul>
+<li><a href="#features">Features</a></li>
+<li><a href="#installation">Installation</a></li>
+<li><a href="#getting-started">Getting Started</a></li>
+<li><a href="#usage">Usage</a>
+<ul>
+<li><a href="#configuring-the-client">Configuring the Client</a></li>
+<li><a href="#executing-queries">Executing Queries</a></li>
+<li><a href="#performing-mutations">Performing Mutations</a></li>
+<li><a href="#subscriptions">Subscriptions</a></li>
+<li><a href="#batch-operations">Batch Operations</a></li>
+<li><a href="#cache-management">Cache Management</a></li>
+<li><a href="#error-handling">Error Handling</a></li>
+</ul>
+</li>
+<li><a href="#advanced-configuration">Advanced Configuration</a>
+<ul>
+<li><a href="#custom-interceptors">Custom Interceptors</a></li>
+<li><a href="#retry-logic">Retry Logic</a></li>
+<li><a href="#logging-options">Logging Options</a></li>
+</ul>
+</li>
+<li><a href="#testing">Testing</a></li>
+<li><a href="#contributing">Contributing</a></li>
+<li><a href="#license">License</a></li>
+<li><a href="#additional-information">Additional Information</a></li>
+</ul>
+<h2 id="features">Features</h2>
+<ul>
+<li><strong>Full GraphQL Support</strong>
+<ul>
+<li>Seamlessly handle queries, mutations, and subscriptions.</li>
+</ul>
+</li>
+<li><strong>Advanced Caching</strong>
+<ul>
+<li>Multiple cache policies (e.g., network-only, cache-first).</li>
+<li>In-memory and persistent storage options.</li>
+<li>Time-To-Live (TTL) support for cache entries.</li>
+</ul>
+</li>
+<li><strong>Built-in Retry Mechanism</strong>
+<ul>
+<li>Configurable retry attempts and delays.</li>
+<li>Exponential backoff strategy.</li>
+</ul>
+</li>
+<li><strong>Robust Error Handling</strong>
+<ul>
+<li>Detailed error information with stack traces.</li>
+<li>Customizable error handling strategies.</li>
+</ul>
+</li>
+<li><strong>Comprehensive Logging</strong>
+<ul>
+<li>Request and response logging.</li>
+<li>Pretty-printing of GraphQL queries and JSON data.</li>
+</ul>
+</li>
+<li><strong>Batch Operations</strong>
+<ul>
+<li>Execute multiple operations in a single network request.</li>
+</ul>
+</li>
+<li><strong>Subscriptions Support</strong>
+<ul>
+<li>Real-time data updates with WebSocket subscriptions.</li>
+</ul>
+</li>
+<li><strong>Clean Architecture</strong>
+<ul>
+<li>Designed for maintainability and testability.</li>
+</ul>
+</li>
+</ul>
+<h2 id="installation">Installation</h2>
+<p>Add the package to your project's <code>pubspec.yaml</code> file:</p>
+<pre class="language-yaml"><code class="language-yaml">dependencies:
+  graphql_client_flutter: ^1.0.0
+</code></pre>
+<p>Then run:</p>
+<pre class="language-bash"><code class="language-bash">dart pub get
+</code></pre>
+<h2 id="getting-started">Getting Started</h2>
+<p>To start using <code>graphql_client_flutter</code>, you need to configure the client with your GraphQL API endpoint.</p>
+<h3 id="example">Example</h3>
+<pre class="language-dart"><code class="language-dart">import 'package:graphql_client_flutter/graphql_client_flutter.dart';
+
+void main() async {
+  // Create client configuration
+  final config = GraphQLConfig(
+    endpoint: 'https://api.example.com/graphql',
+    subscriptionEndpoint: 'wss://api.example.com/graphql',
+    defaultCachePolicy: CachePolicy.cacheFirst,
+    defaultTimeout: Duration(seconds: 30),
+    enableLogging: true,
+    maxRetries: 3,
+    retryDelay: Duration(seconds: 1),
+    defaultHeaders: {
+      'Authorization': 'Bearer YOUR_TOKEN',
+    },
+  );
+
+  // Initialize the client
+  final client = GraphQLClientBase(config: config);
+
+  // Use the client to perform operations
+}
+</code></pre>
+<h2 id="usage">Usage</h2>
+<h3 id="configuring-the-client">Configuring the Client</h3>
+<p>First, import the package and create a configuration:</p>
+<pre class="language-dart"><code class="language-dart">import 'package:graphql_client_flutter/graphql_client_flutter.dart';
+
+void main() async {
+  // Create client configuration
+  final config = GraphQLConfig(
+    endpoint: 'https://api.example.com/graphql',
+    subscriptionEndpoint: 'wss://api.example.com/graphql',
+    defaultCachePolicy: CachePolicy.cacheFirst,
+    defaultTimeout: Duration(seconds: 30),
+    enableLogging: true,
+    maxRetries: 3,
+    retryDelay: Duration(seconds: 1),
+    defaultHeaders: {
+      'Authorization': 'Bearer YOUR_TOKEN',
+    },
+  );
+
+  // Initialize the client
+  final client = GraphQLClientBase(config: config);
+
+  // ... Use the client
+}
+</code></pre>
+<h3 id="executing-queries">Executing Queries</h3>
+<p>Perform a GraphQL query using the <code>query</code> method:</p>
+<pre class="language-dart"><code class="language-dart">final response = await client.query&lt;Map&lt;String, dynamic&gt;&gt;(
+  '''
+  query GetUsers(\$limit: Int) {
+    users(limit: \$limit) {
+      id
+      name
+      email
+    }
+  }
+  ''',
+  variables: {'limit': 10},
+  cachePolicy: CachePolicy.cacheAndNetwork,
+  ttl: Duration(minutes: 10),
+);
+
+if (response.hasErrors) {
+  print('Errors: ${response.errors}');
+} else {
+  print('Users: ${response.data?['users']}');
+}
+</code></pre>
+<h3 id="performing-mutations">Performing Mutations</h3>
+<p>Execute a GraphQL mutation using the <code>mutate</code> method:</p>
+<pre class="language-dart"><code class="language-dart">final response = await client.mutate&lt;Map&lt;String, dynamic&gt;&gt;(
+  '''
+  mutation CreateUser(\$input: CreateUserInput!) {
+    createUser(input: \$input) {
+      id
+      name
+      email
+    }
+  }
+  ''',
+  variables: {
+    'input': {
+      'name': 'Jane Doe',
+      'email': 'jane@example.com',
+    },
+  },
+  invalidateCache: ['GetUsers'], // Specify queries to invalidate
+);
+
+if (response.hasErrors) {
+  print('Errors: ${response.errors}');
+} else {
+  print('Created User: ${response.data?['createUser']}');
+}
+</code></pre>
+<h3 id="subscriptions">Subscriptions</h3>
+<p>Subscribe to real-time data using the <code>subscribe</code> method:</p>
+<pre class="language-dart"><code class="language-dart">final subscription = client.subscribe&lt;Map&lt;String, dynamic&gt;&gt;(
+  '''
+  subscription OnNewUser {
+    userCreated {
+      id
+      name
+      email
+    }
+  }
+  ''',
+).listen(
+  (response) {
+    print('New User: ${response.data?['userCreated']}');
+  },
+  onError: (error) {
+    print('Subscription error: $error');
+  },
+);
+
+// Remember to cancel the subscription when done
+await subscription.cancel();
+</code></pre>
+<h3 id="batch-operations">Batch Operations</h3>
+<p>Perform multiple operations in a single network request using the <code>batch</code> method:</p>
+<pre class="language-dart"><code class="language-dart">final batchResponse = await client.batch([
+  BatchOperation(
+    query: '''
+      query GetUser(\$id: ID!) {
+        user(id: \$id) {
+          id
+          name
+        }
+      }
+    ''',
+    variables: {'id': '1'},
+  ),
+  BatchOperation(
+    query: '''
+      mutation UpdateUser(\$id: ID!, \$input: UpdateUserInput!) {
+        updateUser(id: \$id, input: \$input) {
+          id
+          name
+          email
+        }
+      }
+    ''',
+    variables: {
+      'id': '1',
+      'input': {'name': 'Updated Name'},
+    },
+  ),
+]);
+
+// Access individual responses
+final getUserResponse = batchResponse.responses[0];
+final updateUserResponse = batchResponse.responses[1];
+</code></pre>
+<h3 id="cache-management">Cache Management</h3>
+<p>Manage the cache using provided methods:</p>
+<pre class="language-dart"><code class="language-dart">// Clear the entire cache
+await client.clearCache();
+
+// Invalidate specific queries
+await client.invalidateQueries(['GetUsers', 'GetUser']);
+
+// Get cache statistics
+final stats = await client.getCacheStats();
+print('Cache Stats: $stats');
+</code></pre>
+<h3 id="error-handling">Error Handling</h3>
+<p>Handle errors gracefully:</p>
+<pre class="language-dart"><code class="language-dart">try {
+  final response = await client.query('your query');
+  if (response.hasErrors) {
+    // Handle GraphQL errors
+    for (final error in response.errors!) {
+      print('Error: ${error.message}');
+    }
+  } else {
+    // Use response data
+  }
+} on GraphQLException catch (e) {
+  // Handle exceptions thrown by the client
+  print('GraphQL Exception: ${e.message}');
+} catch (e) {
+  // Handle any other exceptions
+  print('General Exception: $e');
+}
+</code></pre>
+<h2 id="advanced-configuration">Advanced Configuration</h2>
+<h3 id="custom-interceptors">Custom Interceptors</h3>
+<p>You can provide custom interceptors to extend the client's functionality:</p>
+<pre class="language-dart"><code class="language-dart">final client = GraphQLClientBase(
+  config: config,
+  interceptors: [
+    MyCustomInterceptor(),
+    // Add other interceptors
+  ],
+);
+</code></pre>
+<h3 id="retry-logic">Retry Logic</h3>
+<p>Configure retry behavior for failed requests:</p>
+<pre class="language-dart"><code class="language-dart">final config = GraphQLConfig(
+  endpoint: 'https://api.example.com/graphql',
+  maxRetries: 5,
+  retryDelay: Duration(seconds: 2),
+  // Optionally provide a custom shouldRetry function
+);
+</code></pre>
+<h3 id="logging-options">Logging Options</h3>
+<p>Fine-tune logging settings using the <code>LoggingInterceptor</code>:</p>
+<pre class="language-dart"><code class="language-dart">final client = GraphQLClientBase(
+  config: config,
+  interceptors: [
+    LoggingInterceptor(
+      options: LoggingOptions(
+        logRequests: true,
+        logResponses: true,
+        logErrors: true,
+      ),
+      prettyPrintJson: true,
+    ),
+  ],
+);
+</code></pre>
+<h2 id="testing">Testing</h2>
+<p>This package includes comprehensive tests to ensure reliability and correctness. To run the tests, use the following command:</p>
+<pre class="language-bash"><code class="language-bash">dart test test/graphql_client_test.dart
+</code></pre>
+<p>Ensure you have the necessary dev dependencies installed as specified in the <code>pubspec.yaml</code>:</p>
+<pre class="language-yaml"><code class="language-yaml">dev_dependencies:
+  build_runner: ^2.4.13
+  lints: ^5.0.0
+  mockito: ^5.4.4
+  test: ^1.24.0
+</code></pre>
+<h2 id="contributing">Contributing</h2>
+<p>Contributions are welcome! Please follow these steps:</p>
+<ol>
+<li><strong>Fork the repository.</strong></li>
+<li><strong>Create a new branch</strong> for your feature or bug fix.</li>
+<li><strong>Write tests</strong> for your changes.</li>
+<li><strong>Ensure all tests pass</strong>.</li>
+<li><strong>Submit a pull request</strong> with a detailed description of your changes.</li>
+</ol>
+<p>For more details on how to contribute, refer to the <a href="CONTRIBUTING.md">CONTRIBUTING.md</a> file.</p>
+<h2 id="license">License</h2>
+<p>This project is licensed under the MIT License. See the <a href="LICENSE">LICENSE</a> file for details.</p>
+<h2 id="additional-information">Additional Information</h2>
+<ul>
+<li><strong>GitHub Repository</strong>: <a href="https://github.com/Ahmed-Reda-Dev/graphql_client_flutter">https://github.com/Ahmed-Reda-Dev/graphql_client_flutter</a></li>
+<li><strong>Issue Tracker</strong>: <a href="https://github.com/Ahmed-Reda-Dev/graphql_client_flutter/issues">https://github.com/Ahmed-Reda-Dev/graphql_client_flutter/issues</a></li>
+<li><strong>API Documentation</strong>: <a href="https://pub.dev/documentation/graphql_client_flutter/latest/graphql_client_flutter/graphql_client_flutter-library.html">https://pub.dev/documentation/graphql_client_flutter/latest/graphql_client_flutter/graphql_client_flutter-library.html</a></li>
+<li><strong>Examples</strong>: Check out the <a href="example/">example</a> directory for comprehensive usage examples.</li>
+</ul>
+<hr>
+<p><em>Maintained by Ahmed Reda. For support or questions, please open an issue on <a href="https://github.com/Ahmed-Reda-Dev/graphql_client_flutter/issues">GitHub</a>.</em></p>
+</section>
+
+
+      <section class="summary">
+          <h2>Libraries</h2>
+        <dl>
+          <dt id="graphql_client_flutter">
+  <span class="name"><a href="graphql_client_flutter">graphql_client_flutter</a></span> 
+
+</dt>
+<dd>
+</dd>
+
+        </dl>
+      </section>
+  </div> <!-- /.main-content -->
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li><a href="https://github.com/Ahmed-Reda-Dev/graphql_client_flutter">graphql_client_flutter package</a></li>
+</ol>
+
+    <h5 class="hidden-xs"><span class="package-name">graphql_client_flutter</span> <span class="package-kind">package</span></h5>
+    <ol>
+      <li class="section-title">Libraries</li>
+      <li><a href="graphql_client_flutter">graphql_client_flutter</a></li>
+</ol>
+
+  </div>
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+  </div>
+</main>
+<footer>
+  <span class="no-break">
+    graphql_client_flutter
+      1.0.0
+  </span>
+  
+</footer>
+
+
+<script src="static-assets/highlight.pack.js?v1"></script>
+<script src="static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+

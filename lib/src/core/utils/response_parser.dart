@@ -18,7 +18,7 @@ class ResponseParser {
     }
   }
 
-    /// Validates response structure and throws if invalid
+  /// Validates response structure and throws if invalid
   static void validate(Map<String, dynamic> json) {
     if (!isValidResponse(json)) {
       throw GraphQLException(
@@ -58,13 +58,13 @@ class ResponseParser {
   /// Parses data with optional type conversion
   static T? _parseData<T>(dynamic data) {
     if (data == null) return null;
-    
+
     if (data is T) return data;
-    
+
     if (data is Map<String, dynamic>) {
       return data as T;
     }
-    
+
     throw GraphQLException(
       message: 'Invalid data type',
       extensions: {
@@ -78,7 +78,7 @@ class ResponseParser {
   /// Parses GraphQL errors from response
   static List<GraphQLError>? _parseErrors(dynamic errors) {
     if (errors == null) return null;
-    
+
     if (errors is! List) {
       throw GraphQLException(
         message: 'Invalid errors format',
@@ -116,24 +116,25 @@ class ResponseParser {
     switch (message['type']) {
       case 'data':
         return parse<T>(message['payload'] as Map<String, dynamic>);
-        
+
       case 'error':
         throw GraphQLException(
           message: 'Subscription error',
           errors: [
             GraphQLError(
               message: message['payload']['message'] as String,
-              extensions: message['payload']['extensions'] as Map<String, dynamic>?,
+              extensions:
+                  message['payload']['extensions'] as Map<String, dynamic>?,
             ),
           ],
         );
-        
+
       case 'complete':
         throw GraphQLException(
           message: 'Subscription completed',
           extensions: {'type': 'subscription_complete'},
         );
-        
+
       default:
         throw GraphQLException(
           message: 'Unknown subscription message type',

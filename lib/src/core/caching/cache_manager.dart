@@ -11,7 +11,7 @@ class CacheManager {
   final bool persistToStorage;
   final int maxEntries;
   final bool enableCompression;
-  
+
   static const String _cacheVersion = '1.0';
   static const String _metadataKey = '_metadata';
 
@@ -59,7 +59,7 @@ class CacheManager {
           return storedValue;
         }
       }
-      
+
       return null;
     } catch (e) {
       throw GraphQLException(
@@ -85,18 +85,20 @@ class CacheManager {
         expiresAt: DateTime.now().add(ttl ?? defaultTtl),
         lastAccessed: DateTime.now(),
       );
-      
+
       _cache[key] = entry;
-      
+
       if (persistToStorage && persist) {
-        await _saveToStorage(key, _CacheData(
-          value: value,
-          metadata: _CacheMetadata(
-            expiresAt: entry.expiresAt,
-            lastAccessed: entry.lastAccessed,
-            version: _cacheVersion,
-          ),
-        ));
+        await _saveToStorage(
+            key,
+            _CacheData(
+              value: value,
+              metadata: _CacheMetadata(
+                expiresAt: entry.expiresAt,
+                lastAccessed: entry.lastAccessed,
+                version: _cacheVersion,
+              ),
+            ));
       }
     } catch (e) {
       throw GraphQLException(
@@ -134,11 +136,10 @@ class CacheManager {
   // Advanced cache management methods
   Future<void> _evictOldestEntry() async {
     if (_cache.isEmpty) return;
-    
-    final oldestEntry = _cache.entries
-        .reduce((a, b) => 
-            a.value.lastAccessed.isBefore(b.value.lastAccessed) ? a : b);
-            
+
+    final oldestEntry = _cache.entries.reduce(
+        (a, b) => a.value.lastAccessed.isBefore(b.value.lastAccessed) ? a : b);
+
     await invalidate(oldestEntry.key);
   }
 
@@ -169,11 +170,11 @@ class CacheManager {
   Future<void> _saveToStorage(String key, _CacheData data) async {
     final file = File('${await _cacheDir}/$key.json');
     final jsonData = jsonEncode(data.toJson());
-    
-    final String finalData = enableCompression 
+
+    final String finalData = enableCompression
         ? base64Encode(gzip.encode(utf8.encode(jsonData)))
         : jsonData;
-        
+
     await file.create(recursive: true);
     await file.writeAsString(finalData);
   }
@@ -184,15 +185,15 @@ class CacheManager {
       if (!await file.exists()) return null;
 
       final contents = await file.readAsString();
-      
+
       final String jsonData = enableCompression
           ? utf8.decode(gzip.decode(base64Decode(contents)))
           : contents;
 
       final data = _CacheData.fromJson(jsonDecode(jsonData));
-      
+
       // Validate version and expiration
-      if (data.metadata.version != _cacheVersion || 
+      if (data.metadata.version != _cacheVersion ||
           DateTime.now().isAfter(data.metadata.expiresAt)) {
         await invalidate(key);
         return null;
@@ -222,7 +223,8 @@ class CacheManager {
   // Metadata management
   Future<void> _loadMetadata() async {
     try {
-      final metadata = await _loadFromStorage<Map<String, dynamic>>(_metadataKey);
+      final metadata =
+          await _loadFromStorage<Map<String, dynamic>>(_metadataKey);
       if (metadata != null) {
         // Handle cache version updates if needed
         if (metadata['version'] != _cacheVersion) {
@@ -282,16 +284,16 @@ class _CacheMetadata {
   });
 
   Map<String, dynamic> toJson() => {
-    'expiresAt': expiresAt.toIso8601String(),
-    'lastAccessed': lastAccessed.toIso8601String(),
-    'version': version,
-  };
+        'expiresAt': expiresAt.toIso8601String(),
+        'lastAccessed': lastAccessed.toIso8601String(),
+        'version': version,
+      };
 
   factory _CacheMetadata.fromJson(Map<String, dynamic> json) => _CacheMetadata(
-    expiresAt: DateTime.parse(json['expiresAt']),
-    lastAccessed: DateTime.parse(json['lastAccessed']),
-    version: json['version'],
-  );
+        expiresAt: DateTime.parse(json['expiresAt']),
+        lastAccessed: DateTime.parse(json['lastAccessed']),
+        version: json['version'],
+      );
 }
 
 class _CacheData {
@@ -304,12 +306,12 @@ class _CacheData {
   });
 
   Map<String, dynamic> toJson() => {
-    'value': value,
-    'metadata': metadata.toJson(),
-  };
+        'value': value,
+        'metadata': metadata.toJson(),
+      };
 
   factory _CacheData.fromJson(Map<String, dynamic> json) => _CacheData(
-    value: json['value'],
-    metadata: _CacheMetadata.fromJson(json['metadata']),
-  );
+        value: json['value'],
+        metadata: _CacheMetadata.fromJson(json['metadata']),
+      );
 }

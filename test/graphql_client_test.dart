@@ -6,7 +6,9 @@ import 'package:graphql_client_flutter/graphql_client_flutter.dart';
 
 @GenerateMocks([Dio, CacheManager, Response])
 class MockDio extends Mock implements Dio {}
+
 class MockCacheManager extends Mock implements CacheManager {}
+
 class MockResponse extends Mock implements Response {}
 
 void main() {
@@ -14,15 +16,15 @@ void main() {
   late MockDio mockDio;
   late MockCacheManager mockCache;
   late GraphQLConfig config;
-  
+
   setUp(() {
     mockDio = MockDio();
     mockCache = MockCacheManager();
-    
+
     // Setup default mock behavior
     when(mockDio.options).thenReturn(BaseOptions());
     when(mockCache.clear()).thenAnswer((_) => Future.value());
-    
+
     config = GraphQLConfig(
       endpoint: 'https://api.example.com/graphql',
       defaultCachePolicy: CachePolicy.networkOnly,
@@ -30,7 +32,7 @@ void main() {
       maxRetries: 2,
       retryDelay: Duration(milliseconds: 100),
     );
-    
+
     // Pass mockDio to the client through interceptors
     client = GraphQLClientBase(
       config: config,
@@ -40,9 +42,9 @@ void main() {
         InterceptorsWrapper(
           onRequest: (options, handler) {
             mockDio.fetch(options).then(
-              (response) => handler.resolve(response),
-              onError: (error) => handler.reject(error),
-            );
+                  (response) => handler.resolve(response),
+                  onError: (error) => handler.reject(error),
+                );
           },
         ),
       ],
@@ -73,7 +75,10 @@ void main() {
             type: DioExceptionType.connectionTimeout,
           );
         }
-        return MockResponse()..data = {'data': {'test': 'success'}};
+        return MockResponse()
+          ..data = {
+            'data': {'test': 'success'}
+          };
       });
 
       final result = await client.query('query { test }');
@@ -94,7 +99,7 @@ void main() {
   group('Error Handler Tests', () {
     test('handles custom error strategy', () async {
       List<GraphQLException> caughtErrors = [];
-      
+
       client = GraphQLClientBase(
         config: config.copyWith(
           errorHandling: ErrorHandlingStrategy.custom,
@@ -103,8 +108,7 @@ void main() {
         cacheManager: mockCache,
       );
 
-      when(mockDio.post('', data: any, options: any))
-          .thenThrow(DioException(
+      when(mockDio.post('', data: any, options: any)).thenThrow(DioException(
         requestOptions: RequestOptions(),
         error: 'Test Error',
       ));

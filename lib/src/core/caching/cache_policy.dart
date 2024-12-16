@@ -3,19 +3,19 @@ enum CachePolicy {
   /// Always fetch from network and don't cache the response
   /// Use this when you need real-time data and don't want any caching
   networkOnly,
-  
+
   /// Try to get data from cache first, if not found or expired, fetch from network
   /// This is useful for optimizing performance and reducing network calls
   cacheFirst,
-  
+
   /// Only fetch from cache, throw error if data is not found or expired
   /// Use this when you want to work offline or ensure using only cached data
   cacheOnly,
-  
+
   /// Try network first, use cache as fallback if network fails
   /// Useful for ensuring fresh data while having a fallback
   networkFirst,
-  
+
   /// Return cache data immediately, then update from network in background
   /// Best for immediate UI updates while ensuring eventual consistency
   cacheAndNetwork,
@@ -49,14 +49,12 @@ enum CachePolicy {
 extension CachePolicyExtension on CachePolicy {
   /// Whether this policy allows reading from cache
   bool get canReadFromCache {
-    return this != CachePolicy.networkOnly && 
-           this != CachePolicy.noCache;
+    return this != CachePolicy.networkOnly && this != CachePolicy.noCache;
   }
 
   /// Whether this policy allows writing to cache
   bool get canWriteToCache {
-    return this != CachePolicy.cacheOnly && 
-           this != CachePolicy.noCache;
+    return this != CachePolicy.cacheOnly && this != CachePolicy.noCache;
   }
 
   /// Whether this policy requires network access
@@ -66,8 +64,8 @@ extension CachePolicyExtension on CachePolicy {
 
   /// Whether this policy supports background refresh
   bool get supportsBackgroundRefresh {
-    return this == CachePolicy.backgroundRefresh || 
-           this == CachePolicy.cacheAndNetwork;
+    return this == CachePolicy.backgroundRefresh ||
+        this == CachePolicy.cacheAndNetwork;
   }
 
   /// Default TTL (Time To Live) for this cache policy

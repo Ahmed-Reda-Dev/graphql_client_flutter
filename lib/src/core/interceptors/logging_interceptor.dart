@@ -6,10 +6,10 @@ import '../../../graphql_client_flutter.dart';
 class LoggingInterceptor extends Interceptor {
   /// Determines what to log
   final LoggingOptions options;
-  
+
   /// Optional custom logger function
   final void Function(String)? logger;
-  
+
   /// Optional custom error logger function
   final void Function(String)? errorLogger;
 
@@ -37,14 +37,15 @@ class LoggingInterceptor extends Interceptor {
 
   @override
   void onRequest(
-    RequestOptions options, 
+    RequestOptions options,
     RequestInterceptorHandler handler,
   ) {
     if (this.options.logRequests) {
       _log('GraphQL Request:', [
         'Operation: ${_getOperationDetails(options)}',
         if (logHeaders) 'Headers: ${options.headers}',
-        if (logVariables) 'Variables: ${_formatJson(options.data?['variables'])}',
+        if (logVariables)
+          'Variables: ${_formatJson(options.data?['variables'])}',
         'Query: ${_formatQuery(options.data?['query'])}',
       ]);
     }
@@ -72,7 +73,7 @@ class LoggingInterceptor extends Interceptor {
 
   @override
   void onError(
-    DioException err, 
+    DioException err,
     ErrorInterceptorHandler handler,
   ) {
     if (options.logErrors) {
@@ -80,7 +81,8 @@ class LoggingInterceptor extends Interceptor {
         'Operation: ${_getOperationDetails(err.requestOptions)}',
         'Error: ${err.message}',
         if (err.response != null) 'Status: ${err.response?.statusCode}',
-        if (err.response?.data != null) 'Data: ${_formatJson(err.response?.data)}',
+        if (err.response?.data != null)
+          'Data: ${_formatJson(err.response?.data)}',
       ]);
     }
     handler.next(err);
@@ -97,7 +99,6 @@ class LoggingInterceptor extends Interceptor {
         '${operationName != null ? ' ($operationName)' : ''}';
   }
 
-
   String _formatQuery(String? query) {
     if (query == null) return 'null';
     if (!prettyPrintJson) return query;
@@ -107,11 +108,11 @@ class LoggingInterceptor extends Interceptor {
   String _formatJson(dynamic data) {
     if (data == null) return 'null';
     if (!prettyPrintJson) return data.toString();
-    
+
     const jsonIndent = '  ';
     final buffer = StringBuffer();
     var indent = 0;
-    
+
     data.toString().split('').forEach((char) {
       if (char == '{' || char == '[') {
         buffer.write(char);
@@ -131,7 +132,7 @@ class LoggingInterceptor extends Interceptor {
         buffer.write(char);
       }
     });
-    
+
     return buffer.toString();
   }
 
@@ -158,10 +159,10 @@ class LoggingInterceptor extends Interceptor {
 class LoggingOptions {
   /// Whether to log requests
   final bool logRequests;
-  
+
   /// Whether to log responses
   final bool logResponses;
-  
+
   /// Whether to log errors
   final bool logErrors;
 

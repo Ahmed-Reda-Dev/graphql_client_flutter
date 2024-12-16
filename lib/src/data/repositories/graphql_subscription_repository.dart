@@ -12,30 +12,31 @@ class GraphQLSubscriptionRepository {
   final Duration _connectionTimeout;
   final Duration _keepAliveInterval;
   final Map<String, String>? _connectionParams;
-  
+
   bool _isConnected = false;
   Timer? _keepAliveTimer;
-  final Map<String, StreamController<GraphQLResponse<dynamic>>> _subscriptions = {};
-  
+  final Map<String, StreamController<GraphQLResponse<dynamic>>> _subscriptions =
+      {};
+
   GraphQLSubscriptionRepository(
     this._url, {
     Duration connectionTimeout = const Duration(seconds: 10),
     Duration keepAliveInterval = const Duration(seconds: 30),
     Map<String, String>? connectionParams,
-  }) : _connectionTimeout = connectionTimeout,
-       _keepAliveInterval = keepAliveInterval,
-       _connectionParams = connectionParams {
+  })  : _connectionTimeout = connectionTimeout,
+        _keepAliveInterval = keepAliveInterval,
+        _connectionParams = connectionParams {
     _initializeConnection();
   }
 
   Future<void> _initializeConnection() async {
     try {
       _channel = WebSocketChannel.connect(Uri.parse(_url));
-      
+
       // Set up connection timeout
       final connectionCompleter = Completer<void>();
       late StreamSubscription messageSubscription;
-      
+
       final timeoutTimer = Timer(_connectionTimeout, () {
         messageSubscription.cancel();
         connectionCompleter.completeError(
@@ -74,7 +75,7 @@ class GraphQLSubscriptionRepository {
 
       await connectionCompleter.future;
       timeoutTimer.cancel();
-      
+
       // Set up message handling after connection
       _handleMessages();
     } catch (e) {
@@ -90,7 +91,7 @@ class GraphQLSubscriptionRepository {
       (message) {
         final decodedMessage = jsonDecode(message);
         final String? id = decodedMessage['id'];
-        
+
         if (id != null && _subscriptions.containsKey(id)) {
           _handleSubscriptionMessage(id, decodedMessage);
         }
@@ -116,13 +117,13 @@ class GraphQLSubscriptionRepository {
                 .map((e) => GraphQLError.fromJson(e))
                 .toList()
             : null;
-            
+
         controller.add(GraphQLResponse<dynamic>(
           data: data,
           errors: errors,
         ));
         break;
-        
+
       case 'error':
         controller.addError(GraphQLException(
           message: 'Subscription error',
@@ -131,7 +132,7 @@ class GraphQLSubscriptionRepository {
           ],
         ));
         break;
-        
+
       case 'complete':
         controller.close();
         _subscriptions.remove(id);
@@ -153,7 +154,8 @@ class GraphQLSubscriptionRepository {
 
     final id = _generateSubscriptionId();
     final controller = StreamController<GraphQLResponse<T>>();
-    _subscriptions[id] = controller as StreamController<GraphQLResponse<dynamic>>;
+    _subscriptions[id] =
+        controller as StreamController<GraphQLResponse<dynamic>>;
 
     final payload = {
       'type': 'start',
@@ -208,7 +210,7 @@ class GraphQLSubscriptionRepository {
       message: 'WebSocket error: $error',
       extensions: {'type': 'websocket_error'},
     );
-    
+
     for (final controller in _subscriptions.values) {
       controller.addError(exception);
     }
@@ -217,7 +219,7 @@ class GraphQLSubscriptionRepository {
   void _handleConnectionClosed() {
     _isConnected = false;
     _keepAliveTimer?.cancel();
-    
+
     for (final controller in _subscriptions.values) {
       controller.close();
     }
@@ -230,17 +232,17 @@ class GraphQLSubscriptionRepository {
 
   Future<void> dispose() async {
     _keepAliveTimer?.cancel();
-    
+
     // Unsubscribe from all active subscriptions
     for (final id in _subscriptions.keys.toList()) {
       await _unsubscribe(id);
     }
-    
+
     await _channel.sink.close();
     _isConnected = false;
   }
 
   bool get isConnected => _isConnected;
-  
+
   int get activeSubscriptions => _subscriptions.length;
 }

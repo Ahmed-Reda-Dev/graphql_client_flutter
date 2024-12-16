@@ -54,8 +54,7 @@ class GraphQLResponse<T> {
   Map<String, dynamic> toJson() {
     return {
       if (data != null) 'data': data,
-      if (errors != null)
-        'errors': errors!.map((e) => e.toJson()).toList(),
+      if (errors != null) 'errors': errors!.map((e) => e.toJson()).toList(),
       if (extensions != null) 'extensions': extensions,
     };
   }
@@ -115,8 +114,7 @@ class GraphQLResponse<T> {
           _mapEquals(extensions, other.extensions);
 
   @override
-  int get hashCode =>
-      data.hashCode ^ errors.hashCode ^ extensions.hashCode;
+  int get hashCode => data.hashCode ^ errors.hashCode ^ extensions.hashCode;
 }
 
 bool _listEquals<T>(List<T>? a, List<T>? b) {

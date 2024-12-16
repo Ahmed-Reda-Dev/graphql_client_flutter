@@ -41,10 +41,10 @@ abstract class GraphQLRepository {
 
   /// Disposes of any resources
   Future<void> dispose();
-  
+
   /// Invalidates specific queries in the cache
   Future<void> invalidateQueries(List<String> queryKeys);
-  
+
   /// Refreshes cached queries
   Future<void> refreshQueries(List<String> queryKeys);
 }
@@ -80,10 +80,10 @@ class BatchOperation {
       query: json['query'] as String,
       variables: json['variables'] as Map<String, dynamic>?,
       operationName: json['operationName'] as String?,
-      cachePolicy: json['cachePolicy'] != null 
+      cachePolicy: json['cachePolicy'] != null
           ? CachePolicy.values.byName(json['cachePolicy'] as String)
           : null,
-      ttl: json['ttl'] != null 
+      ttl: json['ttl'] != null
           ? Duration(milliseconds: json['ttl'] as int)
           : null,
     );

@@ -285,7 +285,7 @@ class GraphQLClientBase {
     );
   }
 
-    Future<T> _retryOperation<T>(
+  Future<T> _retryOperation<T>(
     Future<T> Function() operation,
     String operationType,
     String? operationName,
@@ -296,7 +296,10 @@ class GraphQLClientBase {
         return await operation();
       } catch (e) {
         attempts++;
-        if (attempts >= config.maxRetries || !_errorHandler.shouldRetry(e is GraphQLException ? e : GraphQLException(message: e.toString()))) {
+        if (attempts >= config.maxRetries ||
+            !_errorHandler.shouldRetry(e is GraphQLException
+                ? e
+                : GraphQLException(message: e.toString()))) {
           return _handleError(
             e,
             operationType: operationType,

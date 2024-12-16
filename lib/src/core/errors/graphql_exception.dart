@@ -34,7 +34,8 @@ class GraphQLException implements Exception {
   });
 
   /// Creates an exception for network errors
-  factory GraphQLException.network(String message, {Exception? originalException}) {
+  factory GraphQLException.network(String message,
+      {Exception? originalException}) {
     return GraphQLException(
       message: 'Network Error: $message',
       originalException: originalException,
@@ -51,7 +52,8 @@ class GraphQLException implements Exception {
   }
 
   /// Creates an exception for validation errors
-  factory GraphQLException.validation(String message, List<GraphQLError> errors) {
+  factory GraphQLException.validation(
+      String message, List<GraphQLError> errors) {
     return GraphQLException(
       message: 'Validation Error: $message',
       errors: errors,
@@ -68,14 +70,16 @@ class GraphQLException implements Exception {
   }
 
   /// Whether this exception represents a network error
-  bool get isNetworkError => 
-      extensions?['type'] == 'network_error' || 
+  bool get isNetworkError =>
+      extensions?['type'] == 'network_error' ||
       originalException.toString().contains('NetworkError');
 
   /// Whether this exception represents a validation error
-  bool get isValidationError => 
-      extensions?['type'] == 'validation_error' || 
-      (errors?.any((e) => e.extensions?['code'] == 'GRAPHQL_VALIDATION_FAILED') ?? false);
+  bool get isValidationError =>
+      extensions?['type'] == 'validation_error' ||
+      (errors?.any(
+              (e) => e.extensions?['code'] == 'GRAPHQL_VALIDATION_FAILED') ??
+          false);
 
   /// Whether this exception represents a parse error
   bool get isParseError => extensions?['type'] == 'parse_error';
@@ -106,7 +110,8 @@ class GraphQLException implements Exception {
         }
         if (error.locations != null) {
           for (final location in error.locations!) {
-            buffer.writeln('    Location: line ${location.line}, column ${location.column}');
+            buffer.writeln(
+                '    Location: line ${location.line}, column ${location.column}');
           }
         }
       }
@@ -136,15 +141,19 @@ class GraphQLException implements Exception {
   Map<String, dynamic> toMap() {
     return {
       'message': message,
-      'errors': errors?.map((e) => {
-        'message': e.message,
-        'locations': e.locations?.map((l) => {
-          'line': l.line,
-          'column': l.column,
-        }).toList(),
-        'path': e.path,
-        'extensions': e.extensions,
-      }).toList(),
+      'errors': errors
+          ?.map((e) => {
+                'message': e.message,
+                'locations': e.locations
+                    ?.map((l) => {
+                          'line': l.line,
+                          'column': l.column,
+                        })
+                    .toList(),
+                'path': e.path,
+                'extensions': e.extensions,
+              })
+          .toList(),
       'statusCode': statusCode,
       'extensions': extensions,
       'operationType': operationType,

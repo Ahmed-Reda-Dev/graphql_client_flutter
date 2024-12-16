@@ -4,28 +4,28 @@ import 'package:dio/dio.dart';
 class AuthInterceptor extends Interceptor {
   /// Function to get the current authentication token
   final Future<String> Function() getToken;
-  
+
   /// Function to refresh the token when expired
   final Future<String> Function()? refreshToken;
-  
+
   /// Function to handle authentication errors
   final void Function(DioException error)? onAuthenticationError;
-  
+
   /// Whether to automatically retry failed requests with refreshed token
   final bool autoRetryWithRefreshedToken;
-  
+
   /// Maximum number of retry attempts for failed auth
   final int maxAuthRetries;
-  
+
   /// Token type (e.g., 'Bearer', 'Basic')
   final String tokenType;
-  
+
   /// Header key for authorization
   final String authHeaderKey;
-  
+
   int _retryCount = 0;
   bool _isRefreshing = false;
-  
+
   AuthInterceptor({
     required this.getToken,
     this.refreshToken,
@@ -38,7 +38,7 @@ class AuthInterceptor extends Interceptor {
 
   @override
   Future<void> onRequest(
-    RequestOptions options, 
+    RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
     try {
@@ -59,7 +59,7 @@ class AuthInterceptor extends Interceptor {
 
   @override
   Future<void> onError(
-    DioException err, 
+    DioException err,
     ErrorInterceptorHandler handler,
   ) async {
     if (!_shouldHandleAuthError(err)) {
@@ -103,13 +103,12 @@ class AuthInterceptor extends Interceptor {
 
   /// Determines if the error should be handled by this interceptor
   bool _shouldHandleAuthError(DioException err) {
-    return err.response?.statusCode == 401 || 
-           err.response?.statusCode == 403;
+    return err.response?.statusCode == 401 || err.response?.statusCode == 403;
   }
 
   /// Handles authentication errors
   void _handleAuthenticationError(
-    DioException err, 
+    DioException err,
     ErrorInterceptorHandler handler,
   ) {
     onAuthenticationError?.call(err);
@@ -118,7 +117,7 @@ class AuthInterceptor extends Interceptor {
 
   /// Retries the failed request with the new token
   Future<void> _retryRequest(
-    DioException err, 
+    DioException err,
     ErrorInterceptorHandler handler,
   ) async {
     try {
@@ -147,7 +146,7 @@ class AuthInterceptor extends Interceptor {
 
   @override
   void onResponse(
-    Response response, 
+    Response response,
     ResponseInterceptorHandler handler,
   ) {
     // Reset retry count on successful response

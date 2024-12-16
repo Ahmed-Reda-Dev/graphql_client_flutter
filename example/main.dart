@@ -103,7 +103,7 @@ void main() async {
 
       // Handle cache operations
       await client.clearCache();
-      
+
       final cacheStats = await client.getCacheStats();
       print('Cache stats: $cacheStats');
 
@@ -136,7 +136,6 @@ void main() async {
       await subscription.cancel();
       await client.dispose();
     }
-
   } on GraphQLException catch (e) {
     // Handle GraphQL-specific errors
     print('GraphQL Error: ${e.message}');

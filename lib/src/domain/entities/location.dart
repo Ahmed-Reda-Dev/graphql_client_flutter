@@ -58,9 +58,7 @@ class Location {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Location &&
-          line == other.line &&
-          column == other.column;
+      other is Location && line == other.line && column == other.column;
 
   @override
   int get hashCode => line.hashCode ^ column.hashCode;
@@ -85,6 +83,6 @@ extension LocationListExtension on List<Location> {
       isEmpty ? null : reduce((a, b) => a.isBefore(b) ? a : b);
 
   /// Gets the latest location in the list
-  Location? get latest => 
+  Location? get latest =>
       isEmpty ? null : reduce((a, b) => a.isAfter(b) ? a : b);
 }

@@ -14,24 +14,25 @@ class GraphQLErrorHandler {
   });
 
   /// Handles various types of errors that can occur during GraphQL operations
-  T handleError<T>(dynamic error, {
+  T handleError<T>(
+    dynamic error, {
     String? operationType,
     String? operationName,
   }) {
     final exception = _createException(error, operationType, operationName);
-    
+
     switch (strategy) {
       case ErrorHandlingStrategy.throwError:
         throw exception;
-        
+
       case ErrorHandlingStrategy.showDialog:
         onError?.call(exception);
         throw exception;
-        
+
       case ErrorHandlingStrategy.silent:
         onError?.call(exception);
         return null as T;
-        
+
       case ErrorHandlingStrategy.custom:
         onError?.call(exception);
         throw exception;
@@ -67,7 +68,7 @@ class GraphQLErrorHandler {
       final errors = (error['errors'] as List)
           .map((e) => GraphQLError.fromJson(e as Map<String, dynamic>))
           .toList();
-          
+
       return GraphQLException(
         message: 'GraphQL errors occurred',
         errors: errors,
@@ -92,11 +93,11 @@ class GraphQLErrorHandler {
 
   /// Determines if an error should trigger a retry
   bool shouldRetry(GraphQLException exception) {
-    return exception.isNetworkError && 
-           !exception.isCacheError &&
-           exception.statusCode != 400 && // Bad Request
-           exception.statusCode != 401 && // Unauthorized
-           exception.statusCode != 403;   // Forbidden
+    return exception.isNetworkError &&
+        !exception.isCacheError &&
+        exception.statusCode != 400 && // Bad Request
+        exception.statusCode != 401 && // Unauthorized
+        exception.statusCode != 403; // Forbidden
   }
 
   /// Gets appropriate error message for user display
@@ -104,15 +105,15 @@ class GraphQLErrorHandler {
     if (exception.isNetworkError) {
       return 'Network connection error. Please check your internet connection.';
     }
-    
+
     if (exception.isValidationError) {
       return 'Invalid request. Please check your input.';
     }
-    
+
     if (exception.isCacheError) {
       return 'Data not available offline.';
     }
-    
+
     return exception.message;
   }
 }

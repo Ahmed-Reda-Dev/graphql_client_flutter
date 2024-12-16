@@ -2,8 +2,7 @@ import '../../../graphql_client_flutter.dart';
 
 /// Utility class for transforming GraphQL queries
 class QueryTransformer {
-
-   // Add new validation method
+  // Add new validation method
   static void validateOrThrow(String query) {
     if (!isValidQuery(query)) {
       throw GraphQLException(
@@ -21,6 +20,7 @@ class QueryTransformer {
         .replaceAll(RegExp(r'\s*\(\s*'), '(') // Normalize parentheses
         .replaceAll(RegExp(r'\s*\)\s*'), ')');
   }
+
   /// Transforms a query by adding fields
   static String addFields(String query, List<String> fields) {
     final pattern = RegExp(r'{([^{}]*)}');

@@ -18,11 +18,10 @@ class GraphQLError {
   String? get errorCode => extensions?['code'] as String?;
 
   /// Whether this is a network error
-  bool get isNetworkError => 
-      errorCode == 'NETWORK_ERROR' || 
-      extensions?['type'] == 'network_error';
+  bool get isNetworkError =>
+      errorCode == 'NETWORK_ERROR' || extensions?['type'] == 'network_error';
 
-  /// Whether this is a validation error  
+  /// Whether this is a validation error
   bool get isValidationError =>
       errorCode == 'GRAPHQL_VALIDATION_FAILED' ||
       extensions?['type'] == 'validation_error';
@@ -84,10 +83,12 @@ class GraphQLError {
     return {
       'message': message,
       if (locations != null)
-        'locations': locations!.map((l) => {
-              'line': l.line,
-              'column': l.column,
-            }).toList(),
+        'locations': locations!
+            .map((l) => {
+                  'line': l.line,
+                  'column': l.column,
+                })
+            .toList(),
       if (path != null) 'path': path,
       if (extensions != null) 'extensions': extensions,
     };

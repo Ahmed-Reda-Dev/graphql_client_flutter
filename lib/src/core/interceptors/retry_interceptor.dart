@@ -49,7 +49,7 @@ class RetryInterceptor extends Interceptor {
     }
   }
 
-    bool _shouldAttemptRetry(DioException err, int attempt) {
+  bool _shouldAttemptRetry(DioException err, int attempt) {
     return attempt < maxRetries &&
         _shouldRetryRequest(err) &&
         _isValidGraphQLRequest(err.requestOptions);
@@ -119,7 +119,8 @@ class RetryInterceptor extends Interceptor {
       DioExceptionType.connectionTimeout ||
       DioExceptionType.sendTimeout ||
       DioExceptionType.receiveTimeout ||
-      DioExceptionType.connectionError => true,
+      DioExceptionType.connectionError =>
+        true,
       DioExceptionType.badResponse => _isRetryableStatusCode(
           error.response?.statusCode,
         ),
@@ -141,7 +142,7 @@ class RetryInterceptor extends Interceptor {
     // Exponential backoff with jitter
     final exponentialDelay = retryDelay.inMilliseconds * (1 << attempt);
     final jitter = (exponentialDelay * 0.2 * Random().nextDouble()).toInt();
-    
+
     return Duration(milliseconds: exponentialDelay + jitter);
   }
 

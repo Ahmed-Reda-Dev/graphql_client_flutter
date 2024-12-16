@@ -41,7 +41,7 @@ class GraphQLRepositoryImpl implements GraphQLRepository {
 
       final transformedQuery = QueryTransformer.addErrorFields(query);
       final cacheKey = _generateCacheKey(transformedQuery, variables);
-      
+
       return await switch (cachePolicy) {
         CachePolicy.cacheFirst => _handleCacheFirstPolicy<T>(
             transformedQuery, variables, cacheKey, ttl, operationName),
@@ -52,8 +52,9 @@ class GraphQLRepositoryImpl implements GraphQLRepository {
             transformedQuery, variables, cacheKey, ttl, operationName),
         CachePolicy.cacheAndNetwork => _handleCacheAndNetworkPolicy<T>(
             transformedQuery, variables, cacheKey, ttl, operationName),
-        CachePolicy.mergeNetworkAndCache => _handleMergeNetworkAndCachePolicy<T>(
-            transformedQuery, variables, cacheKey, ttl, operationName),
+        CachePolicy.mergeNetworkAndCache =>
+          _handleMergeNetworkAndCachePolicy<T>(
+              transformedQuery, variables, cacheKey, ttl, operationName),
         _ => _performRequest<T>(transformedQuery, variables, operationName),
       };
     } catch (e) {
@@ -76,11 +77,11 @@ class GraphQLRepositoryImpl implements GraphQLRepository {
     try {
       final transformedMutation = QueryTransformer.addErrorFields(mutation);
       final response = await _performRequest<T>(
-        transformedMutation, 
-        variables, 
+        transformedMutation,
+        variables,
         operationName,
       );
-      
+
       if (invalidateCache != null) {
         await invalidateQueries(invalidateCache);
       }
@@ -98,11 +99,13 @@ class GraphQLRepositoryImpl implements GraphQLRepository {
   Future<BatchResponse> batch(List<BatchOperation> operations) async {
     _checkDisposed();
     try {
-      final batchedQueries = operations.map((op) => {
-        'query': QueryTransformer.addErrorFields(op.query),
-        'variables': op.variables,
-        'operationName': op.operationName,
-      }).toList();
+      final batchedQueries = operations
+          .map((op) => {
+                'query': QueryTransformer.addErrorFields(op.query),
+                'variables': op.variables,
+                'operationName': op.operationName,
+              })
+          .toList();
 
       final response = await _dio.post(
         '',
@@ -165,7 +168,7 @@ class GraphQLRepositoryImpl implements GraphQLRepository {
   Future<void> clearCache() => _cacheManager.clear();
 
   @override
-  Future<Map<String, dynamic>> getCacheStats() => 
+  Future<Map<String, dynamic>> getCacheStats() =>
       Future.value(_cacheManager.getCacheStats());
 
   @override
@@ -296,6 +299,7 @@ class GraphQLRepositoryImpl implements GraphQLRepository {
     await _cacheManager.set(cacheKey, networkResponse, ttl: ttl);
     return networkResponse;
   }
+
   // Helper Methods
   Future<GraphQLResponse<T>> _performRequest<T>(
     String query,
@@ -315,7 +319,7 @@ class GraphQLRepositoryImpl implements GraphQLRepository {
           responseType: ResponseType.json,
         ),
       );
-      
+
       return ResponseParser.parse<T>(response.data);
     } on DioException catch (e) {
       throw _errorHandler.handleError(

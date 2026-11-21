@@ -1,0 +1,21 @@
+name: graphql_client_flutter_example
+description: Example app for graphql_client_flutter.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=3.47.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  graphql_client_flutter:
+    path: ../
+  material_ui: ^1.11.1
+
+dev_dependencies:
+  lints: ^6.1.0
+
+flutter:
+  uses-material-design: true

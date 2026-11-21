@@ -4,6 +4,9 @@
 /// [GraphQLQuery], [GraphQLMutation] and [GraphQLSubscription] widgets.
 library;
 
+export 'package:dio/dio.dart'
+    show HttpClientAdapter, Interceptor, MultipartFile;
+
 export 'src/core/json.dart';
 export 'src/core/request/cancellation_token.dart';
 export 'src/core/request/graphql_document.dart';
@@ -14,6 +17,7 @@ export 'src/core/response/graphql_exception.dart';
 export 'src/core/response/graphql_response.dart';
 export 'src/core/response/graphql_result.dart';
 export 'src/core/transport/graphql_transport.dart';
+export 'src/core/transport/http/http_transport.dart';
 export 'src/core/transport/http/interceptors/auth_interceptor.dart';
 export 'src/core/transport/http/interceptors/dio_aware_interceptor.dart'
     show DioAwareInterceptor;

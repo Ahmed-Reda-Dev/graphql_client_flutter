@@ -70,6 +70,7 @@ class GraphQLQuery<T> extends StatefulWidget {
     this.parse,
     this.fetchPolicy = FetchPolicy.cacheAndNetwork,
     this.errorPolicy,
+    this.maxAge,
     this.pollInterval,
     this.client,
   });
@@ -91,6 +92,9 @@ class GraphQLQuery<T> extends StatefulWidget {
 
   /// How errors alongside data are treated.
   final ErrorPolicy? errorPolicy;
+
+  /// How long cached data counts as fresh; fresh data is not refetched.
+  final Duration? maxAge;
 
   /// Refetch interval, if the data should be polled.
   final Duration? pollInterval;
@@ -135,6 +139,7 @@ class _GraphQLQueryState<T> extends State<GraphQLQuery<T>> {
         widget.operationName != oldWidget.operationName ||
         widget.fetchPolicy != oldWidget.fetchPolicy ||
         widget.errorPolicy != oldWidget.errorPolicy ||
+        widget.maxAge != oldWidget.maxAge ||
         widget.pollInterval != oldWidget.pollInterval;
     if (shapeChanged) {
       _client = client;
@@ -166,6 +171,7 @@ class _GraphQLQueryState<T> extends State<GraphQLQuery<T>> {
         parse: _parse,
         fetchPolicy: widget.fetchPolicy,
         errorPolicy: widget.errorPolicy,
+        maxAge: widget.maxAge,
         pollInterval: widget.pollInterval,
       );
     } on GraphQLException catch (e) {

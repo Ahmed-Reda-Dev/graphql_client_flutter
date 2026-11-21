@@ -51,6 +51,8 @@ final class GraphQLClient {
   ///   `connection_init` payload (`{'Authorization': 'Bearer <token>'}`).
   ///   HTTP [headers] are not sent over the WebSocket.
   /// - [cache]: defaults to an in-memory normalized cache.
+  /// - [defaultMaxAge]: how long cached results count as fresh (see
+  ///   `query(maxAge:)`); null means they never go stale.
   /// - [maxRetries]: retries for network errors, timeouts, 429 and 5xx
   ///   (never for mutations).
   /// - [persistedQueries]: enables Automatic Persisted Queries.
@@ -70,6 +72,7 @@ final class GraphQLClient {
     GraphQLCache? cache,
     FetchPolicy defaultFetchPolicy = FetchPolicy.cacheFirst,
     ErrorPolicy defaultErrorPolicy = ErrorPolicy.none,
+    Duration? defaultMaxAge,
     Duration timeout = const Duration(seconds: 30),
     int maxRetries = 2,
     bool persistedQueries = false,
@@ -130,6 +133,7 @@ final class GraphQLClient {
       cache: cache,
       defaultFetchPolicy: defaultFetchPolicy,
       defaultErrorPolicy: defaultErrorPolicy,
+      defaultMaxAge: defaultMaxAge,
       addTypename: addTypename,
       observers: observers,
     );
@@ -142,6 +146,7 @@ final class GraphQLClient {
     GraphQLCache? cache,
     this.defaultFetchPolicy = FetchPolicy.cacheFirst,
     this.defaultErrorPolicy = ErrorPolicy.none,
+    this.defaultMaxAge,
     this.addTypename = true,
     List<GraphQLObserver> observers = const [],
   }) : _manager = QueryManager(
@@ -175,6 +180,10 @@ final class GraphQLClient {
   /// Error policy for operations that do not pass one.
   final ErrorPolicy defaultErrorPolicy;
 
+  /// How long cached query results count as fresh, for queries that do not
+  /// pass `maxAge`. Null means cached data never goes stale.
+  final Duration? defaultMaxAge;
+
   /// Whether `__typename` is added to documents (needed for normalization).
   final bool addTypename;
 
@@ -188,6 +197,10 @@ final class GraphQLClient {
   ///
   /// Without [parse], the result data is the raw JSON map (use
   /// `client.query<JsonMap>(...)` or `dynamic`).
+  ///
+  /// [maxAge] treats older cached data as stale: `cacheFirst` then fetches
+  /// (and still returns the stale data if the server is unreachable), and
+  /// `cacheAndNetwork` only refreshes stale data.
   Future<GraphQLResult<T>> query<T>(
     String document, {
     JsonMap variables = const {},
@@ -195,6 +208,7 @@ final class GraphQLClient {
     DataParser<T>? parse,
     FetchPolicy? fetchPolicy,
     ErrorPolicy? errorPolicy,
+    Duration? maxAge,
     Map<String, String> headers = const {},
     CancellationToken? cancelToken,
   }) async {
@@ -214,6 +228,7 @@ final class GraphQLClient {
       errorPolicy: errorPolicy ?? defaultErrorPolicy,
       parse: parse,
       cancelToken: cancelToken,
+      maxAge: maxAge ?? defaultMaxAge,
     );
   }
 
@@ -268,6 +283,7 @@ final class GraphQLClient {
     DataParser<T>? parse,
     FetchPolicy fetchPolicy = FetchPolicy.cacheAndNetwork,
     ErrorPolicy? errorPolicy,
+    Duration? maxAge,
     Duration? pollInterval,
     Map<String, String> headers = const {},
   }) {
@@ -279,6 +295,7 @@ final class GraphQLClient {
       fetchPolicy: fetchPolicy,
       errorPolicy: errorPolicy ?? defaultErrorPolicy,
       parse: parse,
+      maxAge: maxAge ?? defaultMaxAge,
       pollInterval: pollInterval,
     );
   }

@@ -448,10 +448,14 @@ final class _ClientDevToolsTarget implements DevToolsTarget {
   @override
   final String label;
 
+  /// Entities only: ids starting with `$` are the cache's own bookkeeping.
   @override
   Map<String, JsonMap?> cacheSnapshot() {
     final store = _client.cache.store;
-    return {for (final id in store.keys) id: store.get(id)};
+    return {
+      for (final id in store.keys)
+        if (!id.startsWith(r'$')) id: store.get(id),
+    };
   }
 
   @override

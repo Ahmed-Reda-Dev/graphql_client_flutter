@@ -66,6 +66,9 @@ void main() {
         bridge.handle('getCache', {'clientId': id})['entities'] as JsonMap;
     expect(
         entities['User:1'], {'__typename': 'User', 'id': '1', 'name': 'Ada'});
+    expect(client.cache.store.keys, contains(r'$writeTimes'));
+    expect(entities.keys, isNot(contains(r'$writeTimes')),
+        reason: 'internal bookkeeping is hidden from DevTools');
 
     bridge.handle('clearCache', {'clientId': id});
     expect(client.cache.store.keys, isEmpty);

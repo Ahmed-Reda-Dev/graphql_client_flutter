@@ -1,8 +1,7 @@
 name: graphql_client_flutter
 description: >-
-  The simple, typed GraphQL client for Flutter. One-line setup, normalized
-  cache, query/mutation/subscription widgets, auth refresh, retries,
-  persisted queries, file uploads and a built-in testing kit.
+  The simple, typed GraphQL client for Flutter: one-line setup, normalized
+  cache, widgets, auth refresh, subscriptions, offline store and a testing kit.
 version: 2.0.0
 homepage: https://github.com/Ahmed-Reda-Dev/graphql_client_flutter
 repository: https://github.com/Ahmed-Reda-Dev/graphql_client_flutter
@@ -15,6 +14,18 @@ topics:
   - network
   - cache
   - websocket
+
+screenshots:
+  - description: Example app in light mode, with a live data badge.
+    path: doc/images/app-light.webp
+  - description: Example app in dark mode.
+    path: doc/images/app-dark.webp
+  - description: One mutation updates every query that shows the same object.
+    path: doc/images/normalized-cache.webp
+  - description: Expired tokens are refreshed once for all pending requests.
+    path: doc/images/auth-refresh.webp
+  - description: Architecture overview.
+    path: doc/images/architecture.webp
 
 environment:
   sdk: ^3.6.0

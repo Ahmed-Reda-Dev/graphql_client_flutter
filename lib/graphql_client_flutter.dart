@@ -36,6 +36,7 @@ export 'src/core/transport/websocket/subscription_protocol.dart';
 export 'src/core/transport/websocket/websocket_transport.dart';
 export 'src/flutter/graphql_provider.dart';
 export 'src/flutter/query_state.dart';
+export 'src/flutter/store/persistent_store.dart';
 export 'src/flutter/widgets/graphql_mutation.dart';
 export 'src/flutter/widgets/graphql_query.dart';
 export 'src/flutter/widgets/graphql_subscription.dart';

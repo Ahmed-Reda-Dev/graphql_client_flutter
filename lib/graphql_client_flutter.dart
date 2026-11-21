@@ -5,6 +5,8 @@
 library;
 
 export 'src/core/json.dart';
+export 'src/core/request/cancellation_token.dart';
+export 'src/core/request/policies.dart';
 export 'src/core/response/graphql_error.dart';
 export 'src/core/response/graphql_exception.dart';
 export 'src/core/response/graphql_response.dart';

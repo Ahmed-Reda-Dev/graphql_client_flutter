@@ -6,7 +6,10 @@ library;
 
 export 'package:dio/dio.dart'
     show HttpClientAdapter, Interceptor, MultipartFile;
+export 'package:normalize/normalize.dart' show FieldPolicy, TypePolicy;
+export 'package:normalize/utils.dart' show DataIdResolver;
 
+export 'src/core/cache/graphql_cache.dart';
 export 'src/core/cache/store/store.dart';
 export 'src/core/json.dart';
 export 'src/core/request/cancellation_token.dart';

@@ -36,5 +36,11 @@ jobs:
           echo "Line coverage: ${total}%"
           awk -v t="$total" 'BEGIN { exit (t < 80) }'
 
+      - name: Check dependency lower bounds (pub.dev scores this)
+        run: |
+          flutter pub downgrade
+          flutter analyze lib
+          flutter pub upgrade
+
       - name: Check pub.dev readiness
         run: dart pub publish --dry-run

@@ -14,6 +14,7 @@ import '../transport/http/http_transport.dart';
 import '../transport/http/interceptors/auth_interceptor.dart';
 import '../transport/http/interceptors/logging_interceptor.dart';
 import '../transport/http/interceptors/retry_interceptor.dart';
+import '../transport/http/request_batcher.dart';
 import '../transport/websocket/subscription_protocol.dart';
 import '../transport/websocket/websocket_transport.dart';
 import 'graphql_observer.dart';
@@ -57,6 +58,8 @@ final class GraphQLClient {
   ///   (never for mutations).
   /// - [persistedQueries]: enables Automatic Persisted Queries.
   /// - [useGetForQueries]: sends queries as GET (CDN-cacheable).
+  /// - [batch]: sends queries started close together as one HTTP request
+  ///   (the server must support batching; otherwise it falls back).
   /// - [logging] / [logger]: logs operations with credentials redacted.
   /// - [interceptors]: extra Dio interceptors, run after the built-in ones.
   /// - [httpClientAdapter]: custom Dio adapter (pinning, proxies, tests).
@@ -77,6 +80,7 @@ final class GraphQLClient {
     int maxRetries = 2,
     bool persistedQueries = false,
     bool useGetForQueries = false,
+    BatchOptions? batch,
     bool addTypename = true,
     SubscriptionProtocol subscriptionProtocol =
         SubscriptionProtocol.graphqlTransportWs,
@@ -96,6 +100,7 @@ final class GraphQLClient {
       timeout: timeout,
       persistedQueries: persistedQueries,
       useGetForQueries: useGetForQueries,
+      batch: batch,
       httpClientAdapter: httpClientAdapter,
       interceptors: [
         if (token != null)

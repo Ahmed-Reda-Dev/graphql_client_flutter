@@ -24,3 +24,4 @@ export 'src/core/transport/http/interceptors/dio_aware_interceptor.dart'
 export 'src/core/transport/http/interceptors/logging_interceptor.dart';
 export 'src/core/transport/http/interceptors/retry_interceptor.dart';
 export 'src/core/transport/websocket/subscription_protocol.dart';
+export 'src/core/transport/websocket/websocket_transport.dart';

@@ -1,9 +1,8 @@
 name: graphql_client_flutter
 description: >-
-  The simple, typed GraphQL client for Flutter. One-line setup, normalized
-  cache, query/mutation/subscription widgets, auth refresh, retries,
-  persisted queries, file uploads and a built-in testing kit.
-version: 2.0.0
+  The simple, typed GraphQL client for Flutter: one-line setup, normalized
+  cache, widgets, auth refresh, subscriptions, offline store and a testing kit.
+version: 2.1.0
 homepage: https://github.com/Ahmed-Reda-Dev/graphql_client_flutter
 repository: https://github.com/Ahmed-Reda-Dev/graphql_client_flutter
 issue_tracker: https://github.com/Ahmed-Reda-Dev/graphql_client_flutter/issues
@@ -16,6 +15,20 @@ topics:
   - cache
   - websocket
 
+screenshots:
+  - description: Example app in light mode, with a live data badge.
+    path: doc/images/app-light.webp
+  - description: Example app in dark mode.
+    path: doc/images/app-dark.webp
+  - description: One mutation updates every query that shows the same object.
+    path: doc/images/normalized-cache.webp
+  - description: Expired tokens are refreshed once for all pending requests.
+    path: doc/images/auth-refresh.webp
+  - description: DevTools extension with live operations and the cache.
+    path: doc/images/devtools.webp
+  - description: Architecture overview.
+    path: doc/images/architecture.webp
+
 environment:
   sdk: ^3.6.0
   flutter: ">=3.27.0"
@@ -23,7 +36,7 @@ environment:
 dependencies:
   collection: ^1.19.1
   crypto: ^3.0.6
-  dio: ^5.7.0
+  dio: ^5.10.0
   flutter:
     sdk: flutter
   gql: ^1.0.1
@@ -31,6 +44,7 @@ dependencies:
   normalize: ^0.10.0
   path_provider: ^2.1.5
   source_span: ^1.10.2
+  web: ^1.1.2
   web_socket_channel: ^3.0.1
 
 dev_dependencies:

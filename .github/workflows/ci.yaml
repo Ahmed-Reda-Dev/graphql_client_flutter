@@ -17,7 +17,9 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        run: flutter pub get
+        run: |
+          flutter pub get
+          cd example && flutter pub get
 
       - name: Check formatting
         run: dart format --output=none --set-exit-if-changed .
@@ -28,11 +30,20 @@ jobs:
       - name: Test with coverage
         run: flutter test --coverage
 
+      - name: Test web storage in Chrome
+        run: flutter test --platform chrome test/web
+
       - name: Enforce 80% line coverage
         run: |
           total=$(awk -F: '/^LF:/ {lf+=$2} /^LH:/ {lh+=$2} END {printf "%.1f", lh*100/lf}' coverage/lcov.info)
           echo "Line coverage: ${total}%"
           awk -v t="$total" 'BEGIN { exit (t < 80) }'
+
+      - name: Check dependency lower bounds (pub.dev scores this)
+        run: |
+          flutter pub downgrade
+          flutter analyze lib
+          flutter pub upgrade
 
       - name: Check pub.dev readiness
         run: dart pub publish --dry-run

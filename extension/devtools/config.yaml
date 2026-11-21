@@ -1,0 +1,5 @@
+name: graphql_client_flutter
+issueTracker: https://github.com/Ahmed-Reda-Dev/graphql_client_flutter/issues
+version: 1.0.0
+materialIconCodePoint: '0xe1b1'
+requiresConnection: true

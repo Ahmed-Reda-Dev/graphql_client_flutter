@@ -170,7 +170,9 @@ final class AuthInterceptor extends Interceptor with DioAwareInterceptor {
 
   String _format(String value) => scheme.isEmpty ? value : '$scheme $value';
 
+  /// Checks a single response body, or every body of a batch response.
   static bool _hasUnauthenticatedError(Object? body) {
+    if (body is List) return body.any(_hasUnauthenticatedError);
     if (body is! Map) return false;
     final errors = body['errors'];
     if (errors is! List) return false;

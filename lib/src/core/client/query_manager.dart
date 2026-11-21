@@ -98,20 +98,30 @@ final class QueryManager {
   }
 
   /// Runs a query once according to [fetchPolicy].
+  ///
+  /// With [maxAge], cached data older than that is stale: `cacheFirst`
+  /// fetches instead (returning the stale data if the network is
+  /// unreachable), and `cacheAndNetwork` only refreshes stale data.
   Future<GraphQLResult<T>> query<T>(
     GraphQLRequest request, {
     required FetchPolicy fetchPolicy,
     required ErrorPolicy errorPolicy,
     DataParser<T>? parse,
     CancellationToken? cancelToken,
+    Duration? maxAge,
   }) async {
+    GraphQLResult<T>? stale;
     if (fetchPolicy
         case FetchPolicy.cacheFirst ||
             FetchPolicy.cacheAndNetwork ||
             FetchPolicy.cacheOnly) {
       final cached = readCache(request, parse);
-      if (cached != null) {
-        if (fetchPolicy == FetchPolicy.cacheAndNetwork) {
+      final isStale = cached != null && cache.isStale(request, maxAge);
+      if (cached != null && fetchPolicy == FetchPolicy.cacheFirst && isStale) {
+        stale = cached; // Fetch below; fall back to it if offline.
+      } else if (cached != null) {
+        if (fetchPolicy == FetchPolicy.cacheAndNetwork &&
+            (maxAge == null || isStale)) {
           // Refresh in the background; watchers see the update via the cache.
           // _networkResult never throws: failures become GraphQLFailure.
           unawaited(_networkResult<T>(
@@ -122,8 +132,7 @@ final class QueryManager {
           ));
         }
         return cached;
-      }
-      if (fetchPolicy == FetchPolicy.cacheOnly) {
+      } else if (fetchPolicy == FetchPolicy.cacheOnly) {
         return GraphQLFailure(GraphQLException(
           GraphQLErrorKind.cacheMiss,
           'No complete data in the cache for '
@@ -132,13 +141,20 @@ final class QueryManager {
         ));
       }
     }
-    return _networkResult(
+    final result = await _networkResult(
       request,
       fetchPolicy: fetchPolicy,
       errorPolicy: errorPolicy,
       parse: parse,
       cancelToken: cancelToken,
     );
+    // Stale-if-error: old data beats no data when the server is unreachable.
+    if (stale != null &&
+        result is GraphQLFailure<T> &&
+        result.exception.kind.isTransient) {
+      return stale;
+    }
+    return result;
   }
 
   /// Reads [request] from the cache. Returns null on a miss.

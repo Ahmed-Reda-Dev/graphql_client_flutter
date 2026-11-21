@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0]
+
+### Added
+- **Cache freshness with `maxAge`**, available per query, on `watchQuery` and `GraphQLQuery`, and client-wide as `defaultMaxAge`:
+  - `cacheFirst` refetches stale data, and returns it anyway when the server is unreachable (stale-if-error).
+  - `cacheAndNetwork` skips the network while data is fresh.
+  - Write times are kept in the store, so they survive restarts.
+- **Web persistence:** `PersistentStore` saves to `localStorage` in browsers, with the same API, codec support and batched writes as the file-backed store.
+- **Automatic query batching:** `GraphQLClient(batch: BatchOptions())` sends queries started close together as one request.
+  - Requests are split by headers and capped by `maxBatchSize`.
+  - If the server doesn't support batching, the client falls back to single requests on its own.
+- **DevTools integration:**
+  - A `graphql_client_flutter` tab in Dart DevTools shows live operations (variables, response, errors, timing) and a cache browser.
+  - Operations also appear on the Performance timeline.
+  - The integration is compiled out of release builds.
+- `BufferedStore`, the base class for custom persistent stores.
+
+### Fixed
+- The minimum Dio version is now 5.10, which adds `DioExceptionType.transformTimeout`. Projects resolving an older Dio failed to compile.
+- An `UNAUTHENTICATED` error inside a batched response now triggers the token refresh.
+- CI passes on Flutter 3.50: the tests no longer import the deprecated `package:flutter/material.dart`.
+
+### Documentation
+- The README is redesigned, with diagrams for the architecture, the normalized cache, fetch policies and token refresh, plus screenshots of the example app and the DevTools extension. The screenshots also appear on the pub.dev page.
+- The example is a runnable Flutter app, uses the official `material_ui` package, and shows whether data is live or cached.
+- The pubspec description is shortened to fit pub.dev's limit.
+
 ## [2.0.0]
 
 A redesign for simplicity and correctness. See [MIGRATION.md](MIGRATION.md).

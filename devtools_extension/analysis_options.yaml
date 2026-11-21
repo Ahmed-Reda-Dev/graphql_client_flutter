@@ -1,0 +1,10 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # DevTools extensions are built with package:flutter/material.dart, which
+    # Flutter 3.50+ marks as deprecated in favour of material_ui.
+    deprecated_member_use: ignore
+  exclude:
+    - build/**
+    - web/**

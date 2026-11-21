@@ -3,6 +3,8 @@ include: package:lints/recommended.yaml
 analyzer:
   exclude:
     - build/**
+    # A separate Flutter web app with its own lints; see its folder.
+    - devtools_extension/**
   language:
     strict-casts: true
     strict-inference: true

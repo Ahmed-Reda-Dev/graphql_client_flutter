@@ -8,6 +8,9 @@ import 'dart:async';
 /// token.cancel(); // future completes with GraphQLErrorKind.cancelled
 /// ```
 final class CancellationToken {
+  /// Creates a token that has not been cancelled.
+  CancellationToken();
+
   final Completer<void> _completer = Completer<void>();
   Object? _reason;
 

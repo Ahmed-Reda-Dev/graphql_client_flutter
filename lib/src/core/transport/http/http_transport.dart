@@ -11,12 +11,13 @@ import '../../response/graphql_response.dart';
 import '../graphql_transport.dart';
 import 'interceptors/dio_aware_interceptor.dart';
 import 'multipart_body.dart';
+import 'request_batcher.dart';
 
 /// Sends queries and mutations over HTTP using [Dio].
 ///
 /// Supports Automatic Persisted Queries ([persistedQueries]), GET for
-/// queries ([useGetForQueries]) and file uploads (pass a `MultipartFile`
-/// anywhere in the variables).
+/// queries ([useGetForQueries]), automatic query batching ([batch]) and
+/// file uploads (pass a `MultipartFile` anywhere in the variables).
 final class HttpTransport implements GraphQLTransport {
   /// Creates the transport.
   ///
@@ -31,6 +32,7 @@ final class HttpTransport implements GraphQLTransport {
     HttpClientAdapter? httpClientAdapter,
     this.persistedQueries = false,
     this.useGetForQueries = false,
+    this.batch,
   }) : _dio = Dio(BaseOptions(
           headers: headers,
           connectTimeout: timeout,
@@ -46,6 +48,8 @@ final class HttpTransport implements GraphQLTransport {
       if (interceptor is DioAwareInterceptor) interceptor.attachDio(_dio);
     }
     _dio.interceptors.addAll(interceptors);
+    final batch = this.batch;
+    if (batch != null) _batcher = RequestBatcher(batch, _sendBatch);
   }
 
   /// The GraphQL endpoint URL.
@@ -57,14 +61,34 @@ final class HttpTransport implements GraphQLTransport {
   /// Send queries (not mutations) as GET requests, which CDNs can cache.
   final bool useGetForQueries;
 
+  /// Sends queries started close together as one request, when set.
+  /// Mutations and uploads are never batched.
+  final BatchOptions? batch;
+
   final Dio _dio;
+  RequestBatcher? _batcher;
   bool _persistedQueriesSupported = true;
+  bool _batchingSupported = true;
 
   @override
   Future<GraphQLResponse> execute(
     GraphQLRequest request, {
     CancellationToken? cancelToken,
-  }) async {
+  }) {
+    final batcher = _batcher;
+    if (batcher != null &&
+        _batchingSupported &&
+        request.type == GraphQLOperationType.query &&
+        !MultipartBody.hasFiles(request.variables)) {
+      return batcher.add(request, cancelToken);
+    }
+    return _executeOne(request, cancelToken);
+  }
+
+  Future<GraphQLResponse> _executeOne(
+    GraphQLRequest request,
+    CancellationToken? cancelToken,
+  ) async {
     final dioCancel = _bridge(cancelToken);
     if (MultipartBody.hasFiles(request.variables)) {
       return _send(request, dioCancel, upload: true);
@@ -105,7 +129,55 @@ final class HttpTransport implements GraphQLTransport {
       );
 
   @override
-  Future<void> dispose() async => _dio.close();
+  Future<void> dispose() async {
+    _batcher?.dispose();
+    _dio.close();
+  }
+
+  /// Sends [requests] as one JSON-array request. Falls back to individual
+  /// requests (and stops batching) when the server does not answer with an
+  /// array of matching length.
+  Future<List<GraphQLResponse>> _sendBatch(
+      List<GraphQLRequest> requests) async {
+    if (requests.length == 1 || !_batchingSupported) {
+      return Future.wait(requests.map((r) => _executeOne(r, null)));
+    }
+    final names = requests.map((r) => r.operationName ?? 'anonymous');
+    Object? body;
+    int? status;
+    try {
+      final response = await _dio.post<dynamic>(
+        endpoint,
+        data: [for (final request in requests) request.toJson()],
+        options: Options(
+          headers: requests.first.headers,
+          contentType: Headers.jsonContentType,
+          extra: {
+            RequestExtras.operationType: 'query',
+            RequestExtras.operationName: 'batch: ${names.join(', ')}',
+          },
+        ),
+      );
+      body = _decode(response.data);
+      status = response.statusCode;
+    } on DioException catch (e, stackTrace) {
+      if (e.error case final GraphQLException inner) throw inner;
+      final response = e.response;
+      if (response == null) throw _transportException(e, stackTrace, null);
+      body = _decode(response.data);
+      status = response.statusCode;
+    }
+
+    if (body is List && body.length == requests.length) {
+      return [
+        for (final item in body)
+          GraphQLResponse.fromJson(item, statusCode: status),
+      ];
+    }
+    // Not a batch response: this server does not support batching.
+    _batchingSupported = false;
+    return Future.wait(requests.map((r) => _executeOne(r, null)));
+  }
 
   Future<GraphQLResponse> _send(
     GraphQLRequest request,
@@ -189,6 +261,16 @@ final class HttpTransport implements GraphQLTransport {
       }
     }
 
+    throw _transportException(e, stackTrace, request.operationName);
+  }
+
+  /// Maps a failure without a GraphQL body to a [GraphQLException].
+  GraphQLException _transportException(
+    DioException e,
+    StackTrace stackTrace,
+    String? operationName,
+  ) {
+    final response = e.response;
     final kind = switch (e.type) {
       DioExceptionType.connectionTimeout ||
       DioExceptionType.sendTimeout ||
@@ -205,11 +287,11 @@ final class HttpTransport implements GraphQLTransport {
         GraphQLErrorKind.network,
       DioExceptionType.unknown => GraphQLErrorKind.unknown,
     };
-    throw GraphQLException(
+    return GraphQLException(
       kind,
       e.message ?? e.error?.toString() ?? 'HTTP request failed',
       statusCode: response?.statusCode,
-      operationName: request.operationName,
+      operationName: operationName,
       cause: e,
       stackTrace: stackTrace,
     );

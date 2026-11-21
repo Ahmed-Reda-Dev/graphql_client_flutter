@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../cache/graphql_cache.dart';
+import '../devtools/devtools_bridge.dart';
 import '../json.dart';
 import '../request/cancellation_token.dart';
 import '../request/graphql_document.dart';
@@ -14,6 +15,7 @@ import '../transport/http/http_transport.dart';
 import '../transport/http/interceptors/auth_interceptor.dart';
 import '../transport/http/interceptors/logging_interceptor.dart';
 import '../transport/http/interceptors/retry_interceptor.dart';
+import '../transport/http/request_batcher.dart';
 import '../transport/websocket/subscription_protocol.dart';
 import '../transport/websocket/websocket_transport.dart';
 import 'graphql_observer.dart';
@@ -51,10 +53,14 @@ final class GraphQLClient {
   ///   `connection_init` payload (`{'Authorization': 'Bearer <token>'}`).
   ///   HTTP [headers] are not sent over the WebSocket.
   /// - [cache]: defaults to an in-memory normalized cache.
+  /// - [defaultMaxAge]: how long cached results count as fresh (see
+  ///   `query(maxAge:)`); null means they never go stale.
   /// - [maxRetries]: retries for network errors, timeouts, 429 and 5xx
   ///   (never for mutations).
   /// - [persistedQueries]: enables Automatic Persisted Queries.
   /// - [useGetForQueries]: sends queries as GET (CDN-cacheable).
+  /// - [batch]: sends queries started close together as one HTTP request
+  ///   (the server must support batching; otherwise it falls back).
   /// - [logging] / [logger]: logs operations with credentials redacted.
   /// - [interceptors]: extra Dio interceptors, run after the built-in ones.
   /// - [httpClientAdapter]: custom Dio adapter (pinning, proxies, tests).
@@ -70,10 +76,12 @@ final class GraphQLClient {
     GraphQLCache? cache,
     FetchPolicy defaultFetchPolicy = FetchPolicy.cacheFirst,
     ErrorPolicy defaultErrorPolicy = ErrorPolicy.none,
+    Duration? defaultMaxAge,
     Duration timeout = const Duration(seconds: 30),
     int maxRetries = 2,
     bool persistedQueries = false,
     bool useGetForQueries = false,
+    BatchOptions? batch,
     bool addTypename = true,
     SubscriptionProtocol subscriptionProtocol =
         SubscriptionProtocol.graphqlTransportWs,
@@ -93,6 +101,7 @@ final class GraphQLClient {
       timeout: timeout,
       persistedQueries: persistedQueries,
       useGetForQueries: useGetForQueries,
+      batch: batch,
       httpClientAdapter: httpClientAdapter,
       interceptors: [
         if (token != null)
@@ -130,6 +139,7 @@ final class GraphQLClient {
       cache: cache,
       defaultFetchPolicy: defaultFetchPolicy,
       defaultErrorPolicy: defaultErrorPolicy,
+      defaultMaxAge: defaultMaxAge,
       addTypename: addTypename,
       observers: observers,
     );
@@ -142,13 +152,16 @@ final class GraphQLClient {
     GraphQLCache? cache,
     this.defaultFetchPolicy = FetchPolicy.cacheFirst,
     this.defaultErrorPolicy = ErrorPolicy.none,
+    this.defaultMaxAge,
     this.addTypename = true,
     List<GraphQLObserver> observers = const [],
   }) : _manager = QueryManager(
           transport: transport,
           cache: cache ?? GraphQLCache(),
-          observers: List.unmodifiable(observers),
-        );
+          observers: [...observers],
+        ) {
+    if (devToolsEnabled) _attachDevTools(transport);
+  }
 
   /// The default `connection_init` payload: just the bearer token, and only
   /// over a connection where sending it is safe.
@@ -175,11 +188,16 @@ final class GraphQLClient {
   /// Error policy for operations that do not pass one.
   final ErrorPolicy defaultErrorPolicy;
 
+  /// How long cached query results count as fresh, for queries that do not
+  /// pass `maxAge`. Null means cached data never goes stale.
+  final Duration? defaultMaxAge;
+
   /// Whether `__typename` is added to documents (needed for normalization).
   final bool addTypename;
 
   final QueryManager _manager;
   bool _isDisposed = false;
+  int? _devToolsId;
 
   /// The normalized cache. Read, write or evict data directly.
   GraphQLCache get cache => _manager.cache;
@@ -188,6 +206,10 @@ final class GraphQLClient {
   ///
   /// Without [parse], the result data is the raw JSON map (use
   /// `client.query<JsonMap>(...)` or `dynamic`).
+  ///
+  /// [maxAge] treats older cached data as stale: `cacheFirst` then fetches
+  /// (and still returns the stale data if the server is unreachable), and
+  /// `cacheAndNetwork` only refreshes stale data.
   Future<GraphQLResult<T>> query<T>(
     String document, {
     JsonMap variables = const {},
@@ -195,6 +217,7 @@ final class GraphQLClient {
     DataParser<T>? parse,
     FetchPolicy? fetchPolicy,
     ErrorPolicy? errorPolicy,
+    Duration? maxAge,
     Map<String, String> headers = const {},
     CancellationToken? cancelToken,
   }) async {
@@ -214,6 +237,7 @@ final class GraphQLClient {
       errorPolicy: errorPolicy ?? defaultErrorPolicy,
       parse: parse,
       cancelToken: cancelToken,
+      maxAge: maxAge ?? defaultMaxAge,
     );
   }
 
@@ -268,6 +292,7 @@ final class GraphQLClient {
     DataParser<T>? parse,
     FetchPolicy fetchPolicy = FetchPolicy.cacheAndNetwork,
     ErrorPolicy? errorPolicy,
+    Duration? maxAge,
     Duration? pollInterval,
     Map<String, String> headers = const {},
   }) {
@@ -279,6 +304,7 @@ final class GraphQLClient {
       fetchPolicy: fetchPolicy,
       errorPolicy: errorPolicy ?? defaultErrorPolicy,
       parse: parse,
+      maxAge: maxAge ?? defaultMaxAge,
       pollInterval: pollInterval,
     );
   }
@@ -328,6 +354,7 @@ final class GraphQLClient {
 
   /// Closes connections and the cache. The client cannot be used afterwards.
   Future<void> dispose() async {
+    if (_devToolsId case final id?) DevToolsBridge.instance.unregister(id);
     if (_isDisposed) return;
     _isDisposed = true;
     for (final query in _manager.watched.toList()) {
@@ -338,6 +365,21 @@ final class GraphQLClient {
   }
 
   // Helpers ------------------------------------------------------------------
+
+  /// Shows this client in Dart DevTools (debug and profile builds only).
+  void _attachDevTools(GraphQLTransport transport) {
+    final id = DevToolsBridge.instance.register(
+      _ClientDevToolsTarget(this, _describe(transport)),
+    );
+    _devToolsId = id;
+    _manager.observers.add(DevToolsObserver(id));
+  }
+
+  static String _describe(GraphQLTransport transport) => switch (transport) {
+        HttpTransport(:final endpoint) => endpoint,
+        SplitTransport(:final operations) => _describe(operations),
+        _ => transport.runtimeType.toString(),
+      };
 
   GraphQLResult<GraphQLRequest> _requestOrFailure(
     String document,
@@ -396,4 +438,26 @@ final class GraphQLClient {
       );
     }
   }
+}
+
+final class _ClientDevToolsTarget implements DevToolsTarget {
+  _ClientDevToolsTarget(this._client, this.label);
+
+  final GraphQLClient _client;
+
+  @override
+  final String label;
+
+  /// Entities only: ids starting with `$` are the cache's own bookkeeping.
+  @override
+  Map<String, JsonMap?> cacheSnapshot() {
+    final store = _client.cache.store;
+    return {
+      for (final id in store.keys)
+        if (!id.startsWith(r'$')) id: store.get(id),
+    };
+  }
+
+  @override
+  void clearCache() => _client.cache.clear();
 }

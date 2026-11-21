@@ -27,6 +27,7 @@ final class ObservableQuery<T> {
     required this.fetchPolicy,
     required this.errorPolicy,
     this.parse,
+    this.maxAge,
     Duration? pollInterval,
   }) : _pollInterval = pollInterval {
     _controller = StreamController<GraphQLResult<T>>.broadcast(
@@ -46,6 +47,10 @@ final class ObservableQuery<T> {
 
   /// Converts result data to [T].
   final DataParser<T>? parse;
+
+  /// How long cached data counts as fresh. Stale data is still shown, then
+  /// refreshed; fresh data is not refetched by `cacheAndNetwork`.
+  final Duration? maxAge;
 
   late final StreamController<GraphQLResult<T>> _controller;
   StreamSubscription<void>? _cacheSubscription;
@@ -194,10 +199,10 @@ final class ObservableQuery<T> {
   Future<void> _load() async {
     switch (fetchPolicy) {
       case FetchPolicy.cacheFirst:
-        if (!_emitFromCache()) await _fetchNetwork();
+        if (!_emitFromCache() || _isStale) await _fetchNetwork();
       case FetchPolicy.cacheAndNetwork:
-        _emitFromCache();
-        await _fetchNetwork();
+        final hit = _emitFromCache();
+        if (!hit || maxAge == null || _isStale) await _fetchNetwork();
       case FetchPolicy.networkOnly || FetchPolicy.noCache:
         await _fetchNetwork();
       case FetchPolicy.cacheOnly:
@@ -211,6 +216,8 @@ final class ObservableQuery<T> {
         }
     }
   }
+
+  bool get _isStale => _manager.cache.isStale(_request, maxAge);
 
   void _schedulePolling() {
     _pollTimer?.cancel();

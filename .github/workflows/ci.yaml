@@ -19,7 +19,9 @@ jobs:
       - name: Install dependencies
         run: |
           flutter pub get
-          cd example && flutter pub get
+          (cd example && flutter pub get)
+          # Needed so the formatter knows the extension's language version.
+          (cd devtools_extension && flutter pub get)
 
       - name: Check formatting
         run: dart format --output=none --set-exit-if-changed .

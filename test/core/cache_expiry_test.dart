@@ -107,9 +107,9 @@ void main() {
     );
     mock.on('GetUser').reply(user('Ada'));
 
-    await client.query(getUser);
+    await client.query<JsonMap>(getUser);
     now = now.add(const Duration(minutes: 1));
-    await client.query(getUser);
+    await client.query<JsonMap>(getUser);
 
     expect(mock.requests, hasLength(2));
   });

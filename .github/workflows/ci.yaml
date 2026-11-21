@@ -30,6 +30,9 @@ jobs:
       - name: Test with coverage
         run: flutter test --coverage
 
+      - name: Test web storage in Chrome
+        run: flutter test --platform chrome test/web
+
       - name: Enforce 80% line coverage
         run: |
           total=$(awk -F: '/^LF:/ {lf+=$2} /^LH:/ {lh+=$2} END {printf "%.1f", lh*100/lf}' coverage/lcov.info)

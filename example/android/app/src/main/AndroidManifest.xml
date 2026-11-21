@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The example loads data from a public GraphQL API. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="graphql_client_flutter_example"
         android:name="${applicationName}"

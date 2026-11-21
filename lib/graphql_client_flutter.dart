@@ -11,6 +11,7 @@ export 'package:normalize/utils.dart' show DataIdResolver;
 
 export 'src/core/cache/graphql_cache.dart';
 export 'src/core/cache/store/store.dart';
+export 'src/core/client/graphql_client.dart';
 export 'src/core/client/graphql_observer.dart' show GraphQLObserver;
 export 'src/core/client/observable_query.dart';
 export 'src/core/client/query_manager.dart' show CacheUpdater;

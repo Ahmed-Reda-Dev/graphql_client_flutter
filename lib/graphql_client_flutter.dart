@@ -34,3 +34,5 @@ export 'src/core/transport/http/interceptors/logging_interceptor.dart';
 export 'src/core/transport/http/interceptors/retry_interceptor.dart';
 export 'src/core/transport/websocket/subscription_protocol.dart';
 export 'src/core/transport/websocket/websocket_transport.dart';
+export 'src/flutter/graphql_provider.dart';
+export 'src/flutter/query_state.dart';

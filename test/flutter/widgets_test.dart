@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:graphql_client_flutter/graphql_client_flutter.dart';
 import 'package:graphql_client_flutter/testing.dart';
@@ -18,7 +18,7 @@ String parseName(JsonMap data) => (data['user'] as JsonMap)['name'] as String;
 
 Widget app(GraphQLClient client, Widget child) => GraphQLProvider(
       client: client,
-      child: MaterialApp(home: Scaffold(body: child)),
+      child: Directionality(textDirection: TextDirection.ltr, child: child),
     );
 
 Widget userName({String id = '1'}) => GraphQLQuery<String>(
@@ -28,7 +28,7 @@ Widget userName({String id = '1'}) => GraphQLQuery<String>(
       builder: (context, state, query) => switch (state) {
         QueryLoading() => const Text('loading'),
         QueryData(:final data) => Text('name: $data'),
-        QueryError(:final exception) => TextButton(
+        QueryError(:final exception) => _Button(
             onPressed: query.refetch,
             child: Text('error: ${exception.kind.name}'),
           ),
@@ -64,7 +64,7 @@ void main() {
       await tester.pump();
       expect(find.text('error: network'), findsOneWidget);
 
-      await tester.tap(find.byType(TextButton));
+      await tester.tap(find.byType(_Button));
       await tester.pump();
       expect(find.text('name: Ada'), findsOneWidget);
     });
@@ -121,7 +121,7 @@ void main() {
           userName(),
           GraphQLMutation<JsonMap>(
             document: renameUser,
-            builder: (context, state, run) => ElevatedButton(
+            builder: (context, state, run) => _Button(
               onPressed: () => run(variables: {'id': '1', 'name': 'Countess'}),
               child: const Text('rename'),
             ),
@@ -155,7 +155,7 @@ void main() {
           document: renameUser,
           parse: (data) => (data['renameUser'] as JsonMap)['name'] as String,
           onCompleted: (name) => completed = name,
-          builder: (context, state, run) => TextButton(
+          builder: (context, state, run) => _Button(
             onPressed: () => run(variables: {'id': '1', 'name': 'B'}),
             child: Text(switch (state) {
               MutationIdle() => 'idle',
@@ -168,7 +168,7 @@ void main() {
       ));
       expect(find.text('idle'), findsOneWidget);
 
-      await tester.tap(find.byType(TextButton));
+      await tester.tap(find.byType(_Button));
       await tester.pump();
       expect(find.text('running'), findsOneWidget);
 
@@ -186,13 +186,13 @@ void main() {
         GraphQLMutation<JsonMap>(
           document: renameUser,
           onError: (e) => error = e,
-          builder: (context, state, run) => TextButton(
+          builder: (context, state, run) => _Button(
             onPressed: () => run(variables: {'id': '1', 'name': 'B'}),
             child: Text(state is MutationFailure ? 'failed' : 'idle'),
           ),
         ),
       ));
-      await tester.tap(find.byType(TextButton));
+      await tester.tap(find.byType(_Button));
       await tester.pump();
 
       expect(find.text('failed'), findsOneWidget);
@@ -281,9 +281,24 @@ void main() {
   });
 
   testWidgets('a missing provider explains the fix', (tester) async {
-    await tester.pumpWidget(MaterialApp(home: userName()));
+    await tester.pumpWidget(
+      Directionality(textDirection: TextDirection.ltr, child: userName()),
+    );
     final error = tester.takeException();
     expect(error, isA<FlutterError>());
     expect(error.toString(), contains('GraphQLProvider(client: client'));
   });
+}
+
+/// A minimal tappable widget, so the tests need only package:flutter/widgets
+/// (like the library itself).
+class _Button extends StatelessWidget {
+  const _Button({required this.onPressed, required this.child});
+
+  final VoidCallback? onPressed;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) =>
+      GestureDetector(onTap: onPressed, child: child);
 }

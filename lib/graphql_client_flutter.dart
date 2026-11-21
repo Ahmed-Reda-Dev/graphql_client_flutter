@@ -7,6 +7,7 @@ library;
 export 'package:dio/dio.dart'
     show HttpClientAdapter, Interceptor, MultipartFile;
 
+export 'src/core/cache/store/store.dart';
 export 'src/core/json.dart';
 export 'src/core/request/cancellation_token.dart';
 export 'src/core/request/graphql_document.dart';

@@ -69,9 +69,7 @@ final class LoggingInterceptor extends Interceptor {
   ) {
     final options = response.requestOptions;
     final body = response.data;
-    final errors = body is Map && body['errors'] is List
-        ? (body['errors'] as List).length
-        : 0;
+    final errors = _errorCount(body);
     final lines = [
       '← ${_label(options)} ${response.statusCode} in ${_elapsed(options)}'
           '${errors > 0 ? ' with $errors error(s)' : ''}',
@@ -94,6 +92,15 @@ final class LoggingInterceptor extends Interceptor {
   Map<String, Object?> _redact(Map<String, Object?> headers) => {
         for (final MapEntry(:key, :value) in headers.entries)
           key: _redacted.contains(key.toLowerCase()) ? '***' : value,
+      };
+
+  /// Errors in a response body, or across every body of a batch.
+  static int _errorCount(Object? body) => switch (body) {
+        final List<dynamic> batch =>
+          batch.fold(0, (n, b) => n + _errorCount(b)),
+        final Map<dynamic, dynamic> map when map['errors'] is List =>
+          (map['errors'] as List).length,
+        _ => 0,
       };
 
   static String _label(RequestOptions options) {

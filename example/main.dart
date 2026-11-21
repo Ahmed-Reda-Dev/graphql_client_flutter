@@ -1,153 +1,138 @@
+// A complete app in one file: a list of countries from a public GraphQL API,
+// with offline cache, pull-to-refresh and error handling.
+//
+// The API (https://countries.trevorblades.com) needs no key.
+
+import 'package:flutter/material.dart';
 import 'package:graphql_client_flutter/graphql_client_flutter.dart';
 
-void main() async {
-  // Initialize client configuration
-  final config = GraphQLConfig(
-    endpoint: 'https://api.example.com/graphql',
-    subscriptionEndpoint: 'wss://api.example.com/graphql',
-    defaultCachePolicy: CachePolicy.cacheFirst,
-    defaultTimeout: Duration(seconds: 30),
-    enableLogging: true,
-    maxRetries: 3,
-    retryDelay: Duration(seconds: 1),
-    defaultHeaders: {
-      'Authorization': 'Bearer YOUR_TOKEN',
-    },
+const countriesQuery = r'''
+  query Countries($continent: String!) {
+    countries(filter: { continent: { eq: $continent } }) {
+      code
+      name
+      emoji
+      capital
+    }
+  }
+''';
+
+/// An app-level model: `parse` turns raw JSON into these.
+class Country {
+  const Country({
+    required this.code,
+    required this.name,
+    required this.emoji,
+    this.capital,
+  });
+
+  factory Country.fromJson(JsonMap json) => Country(
+        code: json['code'] as String,
+        name: json['name'] as String,
+        emoji: json['emoji'] as String,
+        capital: json['capital'] as String?,
+      );
+
+  final String code;
+  final String name;
+  final String emoji;
+  final String? capital;
+}
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final client = GraphQLClient(
+    'https://countries.trevorblades.com/graphql',
+    // Keeps results on disk so the list shows instantly and offline.
+    cache: GraphQLCache(
+      store: await PersistentStore.open(),
+      // Countries are identified by `code`, not `id`.
+      typePolicies: {
+        'Country': const TypePolicy(keyFields: {'code': true})
+      },
+    ),
+    logging: true,
   );
 
-  // Create GraphQL client instance
-  final client = GraphQLClientBase(config: config);
+  runApp(GraphQLProvider(client: client, child: const CountriesApp()));
+}
 
-  try {
-    // Execute a query with caching
-    final usersResponse = await client.query<Map<String, dynamic>>(
-      '''
-      query GetUsers(\$limit: Int, \$offset: Int) {
-        users(limit: \$limit, offset: \$offset) {
-          id
-          name
-          email
-          posts {
-            id
-            title
-          }
-        }
-      }
-      ''',
-      variables: {
-        'limit': 10,
-        'offset': 0,
-      },
-      cachePolicy: CachePolicy.cacheFirst,
-      ttl: Duration(minutes: 5),
-    );
+class CountriesApp extends StatelessWidget {
+  const CountriesApp({super.key});
 
-    print('Users: ${usersResponse.data?['users']}');
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+        title: 'Countries',
+        theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
+        home: const CountriesPage(),
+      );
+}
 
-    // Execute a mutation
-    final createUserResponse = await client.mutate<Map<String, dynamic>>(
-      '''
-      mutation CreateUser(\$input: CreateUserInput!) {
-        createUser(input: \$input) {
-          id
-          name
-          email
-        }
-      }
-      ''',
-      variables: {
-        'input': {
-          'name': 'John Doe',
-          'email': 'john@example.com',
-        }
-      },
-      // Invalidate cached queries after mutation
-      invalidateCache: ['GetUsers'],
-    );
+class CountriesPage extends StatefulWidget {
+  const CountriesPage({super.key});
 
-    print('Created user: ${createUserResponse.data?['createUser']}');
+  @override
+  State<CountriesPage> createState() => _CountriesPageState();
+}
 
-    // Execute batch operations
-    final batchResponse = await client.batch([
-      BatchOperation(
-        query: 'query GetUser(\$id: ID!) { user(id: \$id) { id name } }',
-        variables: {'id': '1'},
+class _CountriesPageState extends State<CountriesPage> {
+  static const continents = {'AF': 'Africa', 'EU': 'Europe', 'AS': 'Asia'};
+  String continent = 'AF';
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Countries'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: SegmentedButton<String>(
+            segments: [
+              for (final MapEntry(:key, :value) in continents.entries)
+                ButtonSegment(value: key, label: Text(value)),
+            ],
+            selected: {continent},
+            onSelectionChanged: (s) => setState(() => continent = s.first),
+          ),
+        ),
       ),
-      BatchOperation(
-        query: 'query GetPosts { posts { id title } }',
+      // Changing `variables` loads the new continent automatically.
+      body: GraphQLQuery<List<Country>>(
+        document: countriesQuery,
+        variables: {'continent': continent},
+        parse: (data) => (data['countries'] as List)
+            .map((c) => Country.fromJson(c as JsonMap))
+            .toList(),
+        builder: (context, state, query) => switch (state) {
+          QueryLoading() => const Center(child: CircularProgressIndicator()),
+          QueryData(:final data) => RefreshIndicator(
+              onRefresh: query.refetch,
+              child: ListView.builder(
+                itemCount: data.length,
+                itemBuilder: (context, i) => ListTile(
+                  leading:
+                      Text(data[i].emoji, style: const TextStyle(fontSize: 28)),
+                  title: Text(data[i].name),
+                  subtitle: Text(data[i].capital ?? '—'),
+                ),
+              ),
+            ),
+          QueryError(:final exception) => Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(exception.userMessage, textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: query.refetch,
+                    child: const Text('Try again'),
+                  ),
+                ],
+              ),
+            ),
+        },
       ),
-    ]);
-
-    print('Batch responses: ${batchResponse.responses}');
-
-    // Set up subscription if supported
-    if (client.hasSubscriptionSupport) {
-      final subscription = client.subscribe<Map<String, dynamic>>(
-        '''
-        subscription OnUserUpdated {
-          userUpdated {
-            id
-            name
-            email
-          }
-        }
-        ''',
-      ).listen(
-        (response) {
-          print('User updated: ${response.data?['userUpdated']}');
-        },
-        onError: (error) {
-          print('Subscription error: $error');
-        },
-      );
-
-      // Handle cache operations
-      await client.clearCache();
-
-      final cacheStats = await client.getCacheStats();
-      print('Cache stats: $cacheStats');
-
-      // Validate a query
-      final isValid = await client.validateQuery(
-        '''
-        query ValidateMe {
-          users { invalidField }
-        }
-        ''',
-      );
-      print('Query is valid: $isValid');
-
-      // Get schema information
-      final schema = await client.getSchema();
-      print('Schema types: ${schema.data?['__schema']['types']}');
-
-      // Use convenience methods
-      final cachedResponse = await client.queryCacheFirst(
-        'query GetCachedUsers { users { id name } }',
-      );
-      print('Cached users: ${cachedResponse.data}');
-
-      final networkResponse = await client.queryNetworkOnly(
-        'query GetFreshUsers { users { id name } }',
-      );
-      print('Fresh users: ${networkResponse.data}');
-
-      // Cleanup resources
-      await subscription.cancel();
-      await client.dispose();
-    }
-  } on GraphQLException catch (e) {
-    // Handle GraphQL-specific errors
-    print('GraphQL Error: ${e.message}');
-    if (e.errors != null) {
-      for (final error in e.errors!) {
-        print(' - ${error.message}');
-        print('   Location: ${error.locations}');
-        print('   Path: ${error.path}');
-        print('   Extensions: ${error.extensions}');
-      }
-    }
-  } catch (e) {
-    print('Error: $e');
+    );
   }
 }

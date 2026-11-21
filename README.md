@@ -39,7 +39,9 @@ switch (result) {
 | 🔄 **Widgets that stay in sync** | A mutation that changes an object updates every `GraphQLQuery` that shows it. |
 | 🔐 **Auth that just works** | Tokens refresh on HTTP 401 *and* `UNAUTHENTICATED`, once for all pending requests. |
 | 📡 **Resilient subscriptions** | Auto-reconnect with backoff, dead-connection detection, both WebSocket protocols. |
-| 📴 **Offline-ready** | Persist the cache to disk (optionally encrypted) and show data instantly. |
+| 📴 **Offline-ready** | Persist the cache on every platform (optionally encrypted), with `maxAge` freshness and stale-if-error. |
+| 🚀 **Fast by default** | Request deduplication, automatic batching, persisted queries and GET for CDNs. |
+| 🔍 **DevTools extension** | Inspect live operations and browse the cache in a Dart DevTools tab. |
 | 🧪 **Testable by design** | `MockTransport` lets tests run your real app logic against canned responses. |
 
 ## Contents
@@ -48,8 +50,8 @@ switch (result) {
 - [Queries](#queries) · [Mutations](#mutations) · [Subscriptions](#subscriptions) · [Widgets](#widgets)
 - [Errors](#errors) · [Cache](#cache) · [Authentication](#authentication) · [Pagination](#pagination)
 - [File uploads](#file-uploads) · [Performance](#performance) · [Logging and observers](#logging-and-observers)
-- [Testing](#testing) · [Code generation](#code-generation) · [Architecture](#architecture)
-- [Limitations](#limitations) · [Migrating from 1.x](#migrating-from-1x) · [Contributing](#contributing)
+- [DevTools](#devtools) · [Testing](#testing) · [Code generation](#code-generation) · [Architecture](#architecture)
+- [Good to know](#good-to-know) · [Migrating from 1.x](#migrating-from-1x) · [Contributing](#contributing)
 
 ## Install
 
@@ -145,6 +147,17 @@ await watch.refetch();
 ```
 
 Identical queries in flight at the same time are sent only once, and a refetch that returns unchanged data does not rebuild your UI.
+
+**Freshness with `maxAge`**: decide how long cached data stays fresh, per query or for the whole client:
+
+```dart
+// Older than 5 minutes? Fetch again, and still show the cached data if offline.
+await client.query(getFeed, maxAge: const Duration(minutes: 5));
+
+GraphQLClient(url, defaultMaxAge: const Duration(minutes: 5));
+```
+
+With `cacheFirst`, stale data is refetched, but if the server is unreachable the stale data is returned instead of an error (stale-if-error). With `cacheAndNetwork`, fresh data is shown without a network request. `watchQuery` and `GraphQLQuery` accept `maxAge` too.
 
 ## Mutations
 
@@ -282,6 +295,8 @@ PersistentStore.open(
 await client.resetStore();      // on logout: clears memory and disk before returning
 ```
 
+On the web, `PersistentStore` saves to `localStorage` with the same API. Browsers allow about 5 MB per site, and a write over the quota is reported to `onWriteError` while the in-memory cache keeps working.
+
 Direct access:
 
 ```dart
@@ -356,8 +371,11 @@ GraphQLClient(
   useGetForQueries: true,   // GET for queries, so CDNs can cache them
   timeout: const Duration(seconds: 15),
   maxRetries: 3,            // network errors, timeouts, 429 (honours Retry-After), 5xx
+  batch: const BatchOptions(), // queries started within 10 ms share one HTTP request
 );
 ```
+
+**Batching** sends queries started close together (for example, several widgets loading at once) as one JSON-array request. It needs server support (Apollo Server's `allowBatchedHttpRequests`, Hasura, graphql-java and others). If the server doesn't answer with an array, the client resends the queries individually and stops batching. Mutations and uploads are never batched.
 
 Cancel a request with a `CancellationToken`:
 
@@ -384,6 +402,20 @@ class Analytics extends GraphQLObserver {
 
 GraphQLClient(url, observers: [Analytics()]);
 ```
+
+## DevTools
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Ahmed-Reda-Dev/graphql_client_flutter/main/doc/images/devtools.webp" alt="The graphql_client_flutter DevTools extension showing operations and the cache" width="100%">
+</p>
+
+Run your app in debug mode, open Dart DevTools, and enable the **graphql_client_flutter** extension (DevTools asks once per project).
+
+- **Operations:** every query, mutation and subscription as it happens, with variables, response data, errors and timing.
+- **Cache:** browse and search the normalized cache of each client, and clear it.
+- **Performance tab:** each operation appears on the timeline next to your frames.
+
+The integration is compiled out of release builds, so it costs nothing in production.
 
 ## Testing
 
@@ -438,11 +470,11 @@ final client = GraphQLClient.custom(
 
 Custom Dio interceptors that re-send requests can mix in `DioAwareInterceptor`.
 
-## Limitations
+## Good to know
 
-- **Cache expiry:** the normalized cache has no per-entry expiry. Use fetch policies, `evict` or `resetStore` to control freshness.
-- **Web persistence:** on the web, `PersistentStore` keeps data in memory only.
-- **Not included yet:** auto-batching of several operations into one request, and a DevTools extension.
+- **Batching** only helps when the server accepts batched requests; otherwise the client falls back to single requests on its own.
+- **Browser storage** is limited to about 5 MB per site. For larger offline caches on the web, plug in your own `Store` (for example, one backed by IndexedDB).
+- **`maxAge`** applies to query results. Individual objects stay in the cache until they are evicted, garbage-collected or replaced.
 
 ## Migrating from 1.x
 

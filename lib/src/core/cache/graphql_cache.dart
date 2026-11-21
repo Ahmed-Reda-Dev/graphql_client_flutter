@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:collection/collection.dart';
+import 'package:crypto/crypto.dart';
 import 'package:gql/ast.dart' as ast;
 import 'package:gql/language.dart' as gql;
 import 'package:normalize/normalize.dart';
@@ -25,12 +27,17 @@ final class GraphQLCache {
   /// [typePolicies] customise ids (`keyFields`) and field merging;
   /// [dataIdFromObject] computes ids for every object; [possibleTypes] maps
   /// interfaces and unions to their concrete types for fragment matching.
+  ///
+  /// [clock] supplies the current time for freshness checks (`maxAge`);
+  /// override it in tests.
   GraphQLCache({
     Store? store,
     this.typePolicies = const {},
     this.dataIdFromObject,
     this.possibleTypes = const {},
-  }) : store = store ?? InMemoryStore();
+    DateTime Function()? clock,
+  })  : store = store ?? InMemoryStore(),
+        _clock = clock ?? DateTime.now;
 
   /// Where normalized entities are kept.
   final Store store;
@@ -45,6 +52,12 @@ final class GraphQLCache {
   final Map<String, Set<String>> possibleTypes;
 
   final _changes = StreamController<void>.broadcast(sync: false);
+  final DateTime Function() _clock;
+
+  /// Store entry holding when each query result was last written, keyed by
+  /// a hash of the request. Ids starting with `$` are never entities.
+  static const _writeTimesId = r'$writeTimes';
+  static const _maxWriteTimes = 500;
 
   /// Optimistic layers, oldest first. Each maps entity ids to the fields
   /// that layer changed (or null for an entity the layer removed).
@@ -91,6 +104,9 @@ final class GraphQLCache {
 
   /// Writes the result of [request] into the cache.
   void writeQuery(GraphQLRequest request, JsonMap data) {
+    if (_writingLayer == null && request.type == GraphQLOperationType.query) {
+      _recordWriteTime(request);
+    }
     normalizeOperation(
       read: (id) => _read(id, optimistic: _writingLayer != null),
       write: _write,
@@ -201,8 +217,9 @@ final class GraphQLCache {
       store.get,
       typePolicies,
     );
-    final unreachable =
-        store.keys.where((id) => !reachable.contains(id)).toList();
+    final unreachable = store.keys
+        .where((id) => !id.startsWith(r'$') && !reachable.contains(id))
+        .toList();
     if (unreachable.isEmpty) return;
     unreachable.forEach(store.delete);
     _scheduleNotify();
@@ -215,6 +232,42 @@ final class GraphQLCache {
     _optimisticLayers.clear();
     _scheduleNotify();
   }
+
+  // Freshness -----------------------------------------------------------------
+
+  /// When the result of [request] was last written (by a network response
+  /// or [writeQuery]), or null if never.
+  DateTime? writtenAt(GraphQLRequest request) {
+    final millis = store.get(_writeTimesId)?[_writeTimeKey(request)];
+    return millis is int ? DateTime.fromMillisecondsSinceEpoch(millis) : null;
+  }
+
+  /// Whether the cached result of [request] is older than [maxAge].
+  ///
+  /// Always false when [maxAge] is null. True when the result was never
+  /// written through [request] (for example, it was assembled from other
+  /// queries' data).
+  bool isStale(GraphQLRequest request, Duration? maxAge) {
+    if (maxAge == null) return false;
+    final written = writtenAt(request);
+    return written == null || _clock().difference(written) > maxAge;
+  }
+
+  void _recordWriteTime(GraphQLRequest request) {
+    final times = {...?store.get(_writeTimesId)};
+    times[_writeTimeKey(request)] = _clock().millisecondsSinceEpoch;
+    if (times.length > _maxWriteTimes) {
+      final oldest = times.entries.toList()
+        ..sort((a, b) => (a.value as int).compareTo(b.value as int));
+      for (final entry in oldest.take(times.length - _maxWriteTimes)) {
+        times.remove(entry.key);
+      }
+    }
+    store.put(_writeTimesId, times);
+  }
+
+  static String _writeTimeKey(GraphQLRequest request) =>
+      sha1.convert(utf8.encode(request.identity)).toString();
 
   // Optimistic updates -------------------------------------------------------
 

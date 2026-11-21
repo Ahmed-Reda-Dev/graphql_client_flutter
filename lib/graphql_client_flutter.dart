@@ -14,3 +14,6 @@ export 'src/core/response/graphql_exception.dart';
 export 'src/core/response/graphql_response.dart';
 export 'src/core/response/graphql_result.dart';
 export 'src/core/transport/graphql_transport.dart';
+export 'src/core/transport/http/interceptors/dio_aware_interceptor.dart'
+    show DioAwareInterceptor;
+export 'src/core/transport/http/interceptors/retry_interceptor.dart';

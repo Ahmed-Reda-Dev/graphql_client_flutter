@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../cache/graphql_cache.dart';
+import '../devtools/devtools_bridge.dart';
 import '../json.dart';
 import '../request/cancellation_token.dart';
 import '../request/graphql_document.dart';
@@ -157,8 +158,10 @@ final class GraphQLClient {
   }) : _manager = QueryManager(
           transport: transport,
           cache: cache ?? GraphQLCache(),
-          observers: List.unmodifiable(observers),
-        );
+          observers: [...observers],
+        ) {
+    if (devToolsEnabled) _attachDevTools(transport);
+  }
 
   /// The default `connection_init` payload: just the bearer token, and only
   /// over a connection where sending it is safe.
@@ -194,6 +197,7 @@ final class GraphQLClient {
 
   final QueryManager _manager;
   bool _isDisposed = false;
+  int? _devToolsId;
 
   /// The normalized cache. Read, write or evict data directly.
   GraphQLCache get cache => _manager.cache;
@@ -350,6 +354,7 @@ final class GraphQLClient {
 
   /// Closes connections and the cache. The client cannot be used afterwards.
   Future<void> dispose() async {
+    if (_devToolsId case final id?) DevToolsBridge.instance.unregister(id);
     if (_isDisposed) return;
     _isDisposed = true;
     for (final query in _manager.watched.toList()) {
@@ -360,6 +365,21 @@ final class GraphQLClient {
   }
 
   // Helpers ------------------------------------------------------------------
+
+  /// Shows this client in Dart DevTools (debug and profile builds only).
+  void _attachDevTools(GraphQLTransport transport) {
+    final id = DevToolsBridge.instance.register(
+      _ClientDevToolsTarget(this, _describe(transport)),
+    );
+    _devToolsId = id;
+    _manager.observers.add(DevToolsObserver(id));
+  }
+
+  static String _describe(GraphQLTransport transport) => switch (transport) {
+        HttpTransport(:final endpoint) => endpoint,
+        SplitTransport(:final operations) => _describe(operations),
+        _ => transport.runtimeType.toString(),
+      };
 
   GraphQLResult<GraphQLRequest> _requestOrFailure(
     String document,
@@ -418,4 +438,22 @@ final class GraphQLClient {
       );
     }
   }
+}
+
+final class _ClientDevToolsTarget implements DevToolsTarget {
+  _ClientDevToolsTarget(this._client, this.label);
+
+  final GraphQLClient _client;
+
+  @override
+  final String label;
+
+  @override
+  Map<String, JsonMap?> cacheSnapshot() {
+    final store = _client.cache.store;
+    return {for (final id in store.keys) id: store.get(id)};
+  }
+
+  @override
+  void clearCache() => _client.cache.clear();
 }

@@ -197,25 +197,33 @@ final class ObservableQuery<T> {
   }
 
   Future<void> _load() async {
-    switch (fetchPolicy) {
-      case FetchPolicy.cacheFirst:
-        if (!_emitFromCache() || _isStale) await _fetchNetwork();
-      case FetchPolicy.cacheAndNetwork:
-        final hit = _emitFromCache();
-        if (!hit || maxAge == null || _isStale) await _fetchNetwork();
-      case FetchPolicy.networkOnly || FetchPolicy.noCache:
-        await _fetchNetwork();
-      case FetchPolicy.cacheOnly:
-        if (!_emitFromCache()) {
-          _emit(GraphQLFailure(GraphQLException(
-            GraphQLErrorKind.cacheMiss,
-            'No complete data in the cache for '
-            '${_request.operationName ?? 'this query'}',
-            operationName: _request.operationName,
-          )));
-        }
+    final cacheHit = switch (fetchPolicy) {
+      FetchPolicy.cacheFirst ||
+      FetchPolicy.cacheAndNetwork ||
+      FetchPolicy.cacheOnly =>
+        _emitFromCache(),
+      FetchPolicy.networkOnly || FetchPolicy.noCache => false,
+    };
+    if (_needsNetwork(cacheHit: cacheHit)) {
+      await _fetchNetwork();
+    } else if (!cacheHit) {
+      _emit(GraphQLFailure(GraphQLException(
+        GraphQLErrorKind.cacheMiss,
+        'No complete data in the cache for '
+        '${_request.operationName ?? 'this query'}',
+        operationName: _request.operationName,
+      )));
     }
   }
+
+  /// Whether loading must go to the network, given whether the cache had a
+  /// complete result.
+  bool _needsNetwork({required bool cacheHit}) => switch (fetchPolicy) {
+        FetchPolicy.cacheFirst => !cacheHit || _isStale,
+        FetchPolicy.cacheAndNetwork => !cacheHit || maxAge == null || _isStale,
+        FetchPolicy.networkOnly || FetchPolicy.noCache => true,
+        FetchPolicy.cacheOnly => false,
+      };
 
   bool get _isStale => _manager.cache.isStale(_request, maxAge);
 

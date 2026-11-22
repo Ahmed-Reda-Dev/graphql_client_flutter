@@ -273,6 +273,22 @@ void main() {
       await subscription.cancel();
     });
 
+    test('identical network data after cached data is still emitted', () async {
+      // The result is confirmed fresh, so its source must reach the UI
+      // (e.g. a "Cached" badge turning into "Live").
+      mock.on('GetUser').reply({'user': userJson('1', 'Ada')});
+      await client.query<JsonMap>(getUser, variables: {'id': '1'});
+      final sources = <ResultSource>[];
+      final subscription = client
+          .watchQuery<JsonMap>(getUser, variables: {'id': '1'})
+          .stream
+          .listen((r) => sources.add((r as GraphQLSuccess<JsonMap>).source));
+      await pumpEventQueue();
+
+      expect(sources, [ResultSource.cache, ResultSource.network]);
+      await subscription.cancel();
+    });
+
     test('fetchMore merges pages and updates the cache', () async {
       const feed =
           r'query Feed($after: String) { users(after: $after) { id name } }';

@@ -43,7 +43,7 @@ switch (result) {
 | 🔋 **Lifecycle-aware** | Polling pauses in the background, and queries refresh when the app returns or the network comes back. |
 | 🚀 **Fast by default** | Request deduplication, automatic batching, persisted queries and GET for CDNs. |
 | 🔍 **DevTools extension** | Inspect live operations and browse the cache in a Dart DevTools tab. |
-| 🧪 **Testable by design** | `MockTransport` lets tests run your real app logic against canned responses. |
+| 🧪 **Testable by design** | Record real server responses once and replay them in tests, or write canned replies with `MockTransport`. |
 
 ## Contents
 
@@ -379,23 +379,32 @@ final client = GraphQLClient(
 
 ## Pagination
 
+For [Relay-style connections](https://relay.dev/graphql/connections.htm) (`edges` or `nodes` plus `pageInfo`), `RelayPagination` does the bookkeeping:
+
 ```dart
-GraphQLQuery<Feed>(
-  document: feedQuery,
-  parse: (data) => Feed.fromJson(data['feed']),
-  builder: (context, state, query) => FeedList(
-    feed: state.data,
-    onEndReached: () => query.fetchMore(
-      variables: {'after': state.data!.endCursor},
-      merge: (previous, more) => {
-        'feed': {
-          ...more['feed'],
-          'edges': [...previous['feed']['edges'], ...more['feed']['edges']],
-        },
-      },
-    ),
-  ),
-)
+const posts = RelayPagination('user.posts'); // where the connection is in the data
+
+final query = client.watchQuery<JsonMap>(postsQuery); // selects pageInfo { hasNextPage endCursor }
+
+// When the list reaches its end:
+final data = query.latest!.dataOrThrow;
+if (posts.hasNextPage(data)) {
+  await query.fetchMore(
+    variables: posts.nextPageVariables(data)!, // {'after': endCursor}
+    merge: posts.merge,                         // appends edges, updates pageInfo
+  );
+}
+```
+
+`GraphQLQuery`'s builder gets the same `query.fetchMore`. For other pagination styles, pass your own `merge`:
+
+```dart
+query.fetchMore(
+  variables: {'offset': items.length},
+  merge: (previous, more) => {
+    'items': [...previous['items'], ...more['items']],
+  },
+);
 ```
 
 Calling `fetchMore` again while a page is loading returns that same page, so scroll listeners can call it freely.
@@ -485,6 +494,35 @@ expect(mock.requestsFor('GetUser'), hasLength(1));
 ```
 
 Replies queue up: `..reply(a)..reply(b)` answers `a`, then `b` for every later call. An unmatched operation fails with a message listing what is registered.
+
+**Record and replay real responses.** Instead of writing replies by hand, record what your server actually answers once, then replay it in every test without a network:
+
+```dart
+final record = Platform.environment['RECORD'] == '1';
+const fixture = 'test/fixtures/home.json';
+
+test('home screen data', () async {
+  final transport = record
+      ? RecordingTransport(HttpTransport('https://api.example.com/graphql'))
+      : ReplayTransport(await Cassette.load(fixture));
+  final client = GraphQLClient.custom(transport: transport);
+
+  final result = await client.query(homeQuery);
+  expect(result.isSuccess, isTrue);
+
+  if (transport is RecordingTransport) await transport.cassette.save(fixture);
+});
+```
+
+```bash
+RECORD=1 flutter test test/home_test.dart   # refresh the recording
+flutter test                                # replay, no network needed
+```
+
+- The recording is indented JSON, so it reads well in code review.
+- It holds responses, GraphQL errors, transport failures and subscription events. Requests are matched by operation name, variables and query text, so a query you edit after recording tells you to record it again rather than replaying stale data.
+- Request headers are never recorded. Variables and responses are saved as they were sent, so record with a test account and check fixtures for passwords, tokens and personal data before committing them.
+- Record in a `test()`, not a `testWidgets()`: widget tests block real HTTP. Replaying works in both.
 
 ## Code generation
 

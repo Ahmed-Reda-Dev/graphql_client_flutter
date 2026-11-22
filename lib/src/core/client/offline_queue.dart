@@ -110,7 +110,7 @@ final class OfflineQueue extends GraphQLObserver {
     if (_closed) {
       throw _cancelled('The client was disposed');
     }
-    if (!_isJson(request.variables)) {
+    if (!isJsonValue(request.variables)) {
       throw GraphQLException(
         GraphQLErrorKind.invalidRequest,
         'queueIfOffline needs JSON variables; file uploads cannot be queued',
@@ -284,13 +284,6 @@ final class OfflineQueue extends GraphQLObserver {
 
   static GraphQLException _cancelled(String message) =>
       GraphQLException(GraphQLErrorKind.cancelled, message);
-
-  static bool _isJson(Object? value) => switch (value) {
-        null || bool() || num() || String() => true,
-        final List<Object?> list => list.every(_isJson),
-        final Map<String, Object?> map => map.values.every(_isJson),
-        _ => false,
-      };
 }
 
 /// One waiting mutation. [completer] is null for mutations restored after a

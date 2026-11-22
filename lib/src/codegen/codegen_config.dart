@@ -1,5 +1,6 @@
 import 'package:yaml/yaml.dart';
 
+import 'cli_options.dart' show isHttpUrl;
 import 'codegen_exception.dart';
 
 /// Code generation settings, read from the `graphql_client_flutter`
@@ -47,9 +48,10 @@ final class CodegenConfig {
     final schemaUrl = section['schema_url'];
     if (schemaUrl != null &&
         (schemaUrl is! String ||
-            !(Uri.tryParse(schemaUrl)?.hasScheme ?? false))) {
+            !isHttpUrl(Uri.tryParse(schemaUrl) ?? Uri()))) {
       throw const CodegenException(
-        '$_section.schema_url must be the URL of your GraphQL endpoint',
+        '$_section.schema_url must be the http(s) URL of your GraphQL '
+        'endpoint',
       );
     }
     final include = section['include'];

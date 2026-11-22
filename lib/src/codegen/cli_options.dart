@@ -1,5 +1,9 @@
 import 'codegen_exception.dart';
 
+/// Whether [url] is an http(s) URL with a host.
+bool isHttpUrl(Uri url) =>
+    (url.scheme == 'http' || url.scheme == 'https') && url.host.isNotEmpty;
+
 /// The command-line options of `dart run graphql_client_flutter:generate`.
 final class CliOptions {
   /// Creates options.
@@ -36,6 +40,11 @@ final class CliOptions {
             if (downloadUrl == null || !downloadUrl.hasScheme) {
               throw CodegenException('--download needs a URL, got "$url"');
             }
+            if (!isHttpUrl(downloadUrl)) {
+              throw CodegenException(
+                '--download needs an http:// or https:// URL, got "$url"',
+              );
+            }
           }
         case '--header':
           final header = next();
@@ -51,6 +60,9 @@ final class CliOptions {
         default:
           throw CodegenException('Unknown option "$arg"; see --help');
       }
+    }
+    if (headers.isNotEmpty && !download) {
+      throw const CodegenException('--header is used only with --download');
     }
     return CliOptions(
       help: help,

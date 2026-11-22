@@ -1,11 +1,16 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import '../core/json.dart';
 import 'codegen_exception.dart';
 
-/// The standard introspection query: everything needed to rebuild the
-/// schema as SDL.
+/// The standard introspection query: everything codegen needs to rebuild
+/// the schema as SDL.
+///
+/// It sticks to fields every server supports, so `@deprecated` on arguments
+/// and input fields, `@specifiedBy`, `@oneOf` and custom directive
+/// definitions are not included (generated code does not use them).
 const introspectionQuery = r'''
 query IntrospectionQuery {
   __schema {
@@ -48,21 +53,41 @@ fragment TypeRef on __Type {
 Future<String> downloadSchema(
   Uri url, {
   Map<String, String> headers = const {},
+  Duration timeout = const Duration(seconds: 60),
 }) async {
-  final client = HttpClient()..connectionTimeout = const Duration(seconds: 30);
+  final shown = redactUrl(url);
+  final client = HttpClient()..connectionTimeout = timeout;
   try {
     final request = await client.postUrl(url);
-    request.headers.contentType = ContentType.json;
-    headers.forEach(request.headers.set);
+    request
+      ..followRedirects = false
+      ..headers.contentType = ContentType.json;
+    try {
+      headers.forEach(request.headers.set);
+    } on FormatException catch (e) {
+      throw CodegenException('Invalid --header: ${e.message}');
+    }
     request.write(jsonEncode({'query': introspectionQuery}));
-    final response = await request.close();
-    final body = await response.transform(utf8.decoder).join();
+    final (response, body) = await () async {
+      final response = await request.close();
+      return (response, await response.transform(utf8.decoder).join());
+    }()
+        .timeout(timeout);
+    final location = response.headers.value(HttpHeaders.locationHeader);
+    if (response.statusCode >= 300 &&
+        response.statusCode < 400 &&
+        location != null) {
+      throw CodegenException(
+        '$shown redirects to $location; '
+        'use that URL',
+      );
+    }
     final Object? json;
     try {
       json = jsonDecode(body);
     } on FormatException {
       throw CodegenException(
-        '$url answered HTTP ${response.statusCode} without a GraphQL '
+        '$shown answered HTTP ${response.statusCode} without a GraphQL '
         'response; is this the GraphQL endpoint?',
       );
     }
@@ -70,21 +95,33 @@ Future<String> downloadSchema(
     if (data is! JsonMap || data['__schema'] == null) {
       final errors = json is JsonMap ? json['errors'] : null;
       throw CodegenException(
-        'Could not read the schema from $url (HTTP ${response.statusCode})'
+        'Could not read the schema from $shown (HTTP ${response.statusCode})'
         '${errors is List ? ': ${errors.map((e) => e is JsonMap ? e['message'] : e).join('; ')}' : ''}. '
         'The server may have introspection disabled, or need --header '
         '"Authorization: ...".',
       );
     }
     return introspectionToSdl(data);
+  } on TimeoutException {
+    throw CodegenException(
+      '$shown did not answer within ${timeout.inSeconds} seconds',
+    );
   } on SocketException catch (e) {
-    throw CodegenException('Could not reach $url: ${e.message}');
+    throw CodegenException('Could not reach $shown: ${e.message}');
   } on HttpException catch (e) {
-    throw CodegenException('Could not reach $url: ${e.message}');
+    throw CodegenException('Could not reach $shown: ${e.message}');
   } finally {
     client.close(force: true);
   }
 }
+
+/// [url] without credentials (`user:pass@`, query parameters), for logs.
+Uri redactUrl(Uri url) => Uri(
+      scheme: url.scheme,
+      host: url.host,
+      port: url.hasPort ? url.port : null,
+      path: url.path,
+    );
 
 /// Converts the `data` of an [introspectionQuery] response to SDL, with
 /// types sorted by name so a changed schema gives a readable diff.

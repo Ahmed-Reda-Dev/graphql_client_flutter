@@ -587,10 +587,12 @@ GraphQLQuery<GetUserData>(
 What you get:
 
 - **Null safety from the schema.** Non-null fields are non-nullable in Dart, and fields under `@include`/`@skip` become nullable.
-- **Unions and interfaces become sealed classes**, so a `switch` must handle every type. A fallback variant keeps working when the server adds a new type.
-- **Enums get an `$unknown` value**, so a value added to the schema later doesn't crash older app versions.
+- **Unions and interfaces become sealed classes**, so a `switch` must handle every type. A fallback variant keeps working when the server adds a new type. Fields every type has are on the sealed class itself, nullable if any type has them nullable.
+- **Enums get an `$unknown` value**, so a value added to the schema later doesn't crash older app versions. Data holding one can still be written with `toJson` (as `null`, which reads back as `$unknown`). Only inputs and variables refuse to send it.
 - **Every class has `toJson`**, including `__typename`, so generated data can be used as an optimistic response or written to the cache.
-- **Mistakes are reported with their location**: unknown fields, unknown fragments, names that clash. For example, `lib/user/user.graphql:3:5: Type "User" has no field "nickname"`.
+- **Mistakes are reported with their location**: unknown fields and fragments, missing selections, and names that would clash in Dart. For example, `lib/user/user.graphql:3:5: Type "User" has no field "nickname"`. When there is an error, nothing is written.
+- **Real-world schemas work**: `extend type`, `schema { query: ... }`, fragments in other files, aliases, and names that are Dart keywords (they get a `$` suffix, as in `class$`).
+- Files are generated next to their `.graphql` source, and generated files whose source is gone are removed. Only files carrying the generated header are touched. Hidden folders and `build/` are skipped.
 
 The [example app](example) uses it. Prefer [graphql_codegen](https://pub.dev/packages/graphql_codegen)? Pass its `fromJson` to `parse`; it plugs in the same way.
 

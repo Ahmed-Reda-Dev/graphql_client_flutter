@@ -12,6 +12,7 @@ import '../response/graphql_result.dart';
 import '../transport/graphql_transport.dart';
 import 'graphql_observer.dart';
 import 'observable_query.dart';
+import 'offline_queue.dart';
 import 'result_mapper.dart';
 
 /// Updates the cache after a mutation. [data] is the mutation's result data
@@ -24,11 +25,22 @@ typedef CacheUpdater = void Function(GraphQLCache cache, JsonMap data);
 /// API.
 final class QueryManager {
   /// Creates a manager.
+  ///
+  /// Restores mutations queued offline before the last shutdown and starts
+  /// sending them.
   QueryManager({
     required this.transport,
     required this.cache,
     required this.observers,
-  });
+    RetryDelay? offlineRetryDelay,
+  }) {
+    offlineQueue = OfflineQueue(
+      cache: cache,
+      send: fetch,
+      retryDelay: offlineRetryDelay,
+    );
+    observers.add(offlineQueue);
+  }
 
   /// Sends requests.
   final GraphQLTransport transport;
@@ -38,6 +50,9 @@ final class QueryManager {
 
   /// Receive operation events.
   final List<GraphQLObserver> observers;
+
+  /// Mutations waiting for the network (`queueIfOffline`).
+  late final OfflineQueue offlineQueue;
 
   final Map<String, Future<GraphQLResponse>> _inflight = {};
   final Set<ObservableQuery<Object?>> _watched = {};
@@ -73,6 +88,7 @@ final class QueryManager {
     final wasActive = isActive;
     _appVisible = visible;
     _online = online;
+    offlineQueue.setPaused(!online);
     if (wasActive == isActive) return;
 
     final queries = _watched.toList();
@@ -262,6 +278,10 @@ final class QueryManager {
 
   /// Runs a mutation, applying [optimisticResponse] while it is in flight.
   ///
+  /// With [queueIfOffline], the mutation goes through [offlineQueue]: it
+  /// waits there (optimistic data still applied) while the server is
+  /// unreachable. [cancelToken] does not apply to queued mutations.
+  ///
   /// An exception thrown by [update] is reported to the current [Zone]
   /// rather than turning a mutation the server accepted into a failure.
   Future<GraphQLResult<T>> mutate<T>(
@@ -272,6 +292,7 @@ final class QueryManager {
     JsonMap? optimisticResponse,
     CacheUpdater? update,
     List<String> refetchQueries = const [],
+    bool queueIfOffline = false,
   }) async {
     final layerId = 'mutation-${++_optimisticIds}';
     if (optimisticResponse != null) {
@@ -284,7 +305,12 @@ final class QueryManager {
     final generation = cache.generation;
     final GraphQLResponse response;
     try {
-      response = await fetch(request, cancelToken: cancelToken);
+      response = queueIfOffline
+          ? await offlineQueue.enqueue(
+              request,
+              optimisticResponse: optimisticResponse,
+            )
+          : await fetch(request, cancelToken: cancelToken);
     } catch (e, stackTrace) {
       return GraphQLFailure(ResultMapper.toException(e, stackTrace, request));
     } finally {

@@ -14,6 +14,7 @@ export 'src/core/cache/store/store.dart';
 export 'src/core/client/graphql_client.dart';
 export 'src/core/client/graphql_observer.dart' show GraphQLObserver;
 export 'src/core/client/observable_query.dart';
+export 'src/core/client/offline_queue.dart' show OfflineQueue, RetryDelay;
 export 'src/core/client/query_manager.dart' show CacheUpdater;
 export 'src/core/client/result_mapper.dart' show DataParser;
 export 'src/core/json.dart';

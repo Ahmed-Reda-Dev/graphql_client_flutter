@@ -3,6 +3,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'generated/schema.graphql.dart';
+import 'generated/user.graphql.dart';
 
 void main() {
   group('generated enums', () {
@@ -36,6 +37,47 @@ void main() {
         'tags': ['math'],
         'birthday': '1815-12-10T00:00:00.000Z',
         'filter': {'nameContains': 'A'},
+      });
+    });
+  });
+
+  group('generated data classes', () {
+    final json = {
+      'user': {
+        '__typename': 'User',
+        'id': '1',
+        'name': 'Ada',
+        'role': 'ADMIN',
+        'createdAt': '2026-01-02T03:04:05.000Z',
+        'avatar': {'__typename': 'Image', 'url': 'a.png', 'width': 64},
+        'tags': ['math'],
+        'scores': [1, null, 2.5],
+        'metadata': {'any': 'json'},
+        'best': null,
+      },
+    };
+
+    test('read a response into typed fields', () {
+      final user = GetUserData.fromJson(json).user!;
+
+      expect(user.name, 'Ada');
+      expect(user.email, isNull); // @include dropped it.
+      expect(user.role, Role.admin);
+      expect(user.createdAt, DateTime.utc(2026, 1, 2, 3, 4, 5));
+      expect(user.avatar?.width, 64);
+      expect(user.scores, [1.0, null, 2.5]);
+      expect(user.metadata, {'any': 'json'});
+      expect(user.best, isNull);
+    });
+
+    test('write back the same JSON, ready for the cache', () {
+      expect(GetUserData.fromJson(json).toJson(), {
+        '__typename': 'Query',
+        'user': {
+          ...json['user']!,
+          'email': null,
+          'scores': [1.0, null, 2.5]
+        },
       });
     });
   });

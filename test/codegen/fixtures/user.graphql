@@ -1,0 +1,37 @@
+fragment UserFields on User {
+  id
+  name
+}
+
+query GetUser($id: ID!, $withEmail: Boolean = false) {
+  user(id: $id) {
+    ...UserFields
+    email @include(if: $withEmail)
+    role
+    createdAt
+    avatar {
+      url
+      width
+    }
+    tags
+    scores
+    metadata
+    best: friends(first: 1) {
+      name
+    }
+  }
+}
+
+query ListUsers($filter: UserFilter) {
+  users(filter: $filter) {
+    ...UserFields
+    role
+  }
+}
+
+mutation CreateUser($input: CreateUserInput!) {
+  createUser(input: $input) {
+    ...UserFields
+    role
+  }
+}

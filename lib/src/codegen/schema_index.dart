@@ -23,12 +23,28 @@ final class SchemaIndex {
       for (final definition in document.definitions)
         if (definition is TypeDefinitionNode) definition.name.value: definition,
     };
+    for (final extension
+        in document.definitions.whereType<TypeExtensionNode>()) {
+      final name = extension.name.value;
+      final extended = _extend(types[name], extension);
+      if (extended == null) {
+        throw CodegenException(
+          'Cannot extend "$name": no matching type is defined',
+          extension.span,
+        );
+      }
+      types[name] = extended;
+    }
     final roots = {
       OperationType.query: 'Query',
       OperationType.mutation: 'Mutation',
       OperationType.subscription: 'Subscription',
       for (final schema
           in document.definitions.whereType<SchemaDefinitionNode>())
+        for (final root in schema.operationTypes)
+          root.operation: root.type.name.value,
+      for (final schema
+          in document.definitions.whereType<SchemaExtensionNode>())
         for (final root in schema.operationTypes)
           root.operation: root.type.name.value,
     };
@@ -48,12 +64,62 @@ final class SchemaIndex {
     return SchemaIndex._(types, roots, possible);
   }
 
+  /// [type] with the fields, members or values [extension] adds, or null
+  /// if they do not match.
+  static TypeDefinitionNode? _extend(
+    TypeDefinitionNode? type,
+    TypeExtensionNode extension,
+  ) =>
+      switch ((type, extension)) {
+        (final ObjectTypeDefinitionNode t, final ObjectTypeExtensionNode e) =>
+          ObjectTypeDefinitionNode(
+            name: t.name,
+            description: t.description,
+            interfaces: [...t.interfaces, ...e.interfaces],
+            fields: [...t.fields, ...e.fields],
+            span: t.span,
+          ),
+        (
+          final InterfaceTypeDefinitionNode t,
+          final InterfaceTypeExtensionNode e,
+        ) =>
+          InterfaceTypeDefinitionNode(
+            name: t.name,
+            description: t.description,
+            interfaces: [...t.interfaces, ...e.interfaces],
+            fields: [...t.fields, ...e.fields],
+            span: t.span,
+          ),
+        (final UnionTypeDefinitionNode t, final UnionTypeExtensionNode e) =>
+          UnionTypeDefinitionNode(
+            name: t.name,
+            description: t.description,
+            types: [...t.types, ...e.types],
+            span: t.span,
+          ),
+        (final EnumTypeDefinitionNode t, final EnumTypeExtensionNode e) =>
+          EnumTypeDefinitionNode(
+            name: t.name,
+            description: t.description,
+            values: [...t.values, ...e.values],
+            span: t.span,
+          ),
+        (
+          final InputObjectTypeDefinitionNode t,
+          final InputObjectTypeExtensionNode e,
+        ) =>
+          InputObjectTypeDefinitionNode(
+            name: t.name,
+            description: t.description,
+            fields: [...t.fields, ...e.fields],
+            span: t.span,
+          ),
+        _ => null,
+      };
+
   final Map<String, TypeDefinitionNode> _types;
   final Map<OperationType, String> _roots;
   final Map<String, Set<String>> _possibleTypes;
-
-  /// Every type defined in the schema.
-  Iterable<TypeDefinitionNode> get types => _types.values;
 
   /// The type named [name], or null (built-in scalars are not listed).
   TypeDefinitionNode? type(String name) => _types[name];

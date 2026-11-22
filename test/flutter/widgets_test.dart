@@ -280,6 +280,60 @@ void main() {
     expect(find.text('Ada'), findsOneWidget);
   });
 
+  group('GraphQLProvider lifecycle', () {
+    Future<void> setLifecycle(
+      WidgetTester tester,
+      List<AppLifecycleState> states,
+    ) async {
+      for (final state in states) {
+        tester.binding.handleAppLifecycleStateChanged(state);
+      }
+      await tester.pump();
+    }
+
+    const toBackground = [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+    ];
+    const toForeground = [
+      AppLifecycleState.inactive,
+      AppLifecycleState.resumed,
+    ];
+
+    testWidgets('tells the client when the app is hidden and shown',
+        (tester) async {
+      await tester.pumpWidget(app(client, const SizedBox()));
+
+      await setLifecycle(tester, toBackground);
+      expect(client.isAppVisible, isFalse);
+
+      await setLifecycle(tester, toForeground);
+      expect(client.isAppVisible, isTrue);
+    });
+
+    testWidgets('handleAppLifecycle: false leaves the client alone',
+        (tester) async {
+      await tester.pumpWidget(GraphQLProvider(
+        client: client,
+        handleAppLifecycle: false,
+        child: const SizedBox(),
+      ));
+
+      await setLifecycle(tester, toBackground);
+      expect(client.isAppVisible, isTrue);
+      await setLifecycle(tester, toForeground);
+    });
+
+    testWidgets('a dialog over the app does not count as hidden',
+        (tester) async {
+      await tester.pumpWidget(app(client, const SizedBox()));
+
+      await setLifecycle(tester, [AppLifecycleState.inactive]);
+      expect(client.isAppVisible, isTrue);
+      await setLifecycle(tester, [AppLifecycleState.resumed]);
+    });
+  });
+
   testWidgets('a missing provider explains the fix', (tester) async {
     await tester.pumpWidget(
       Directionality(textDirection: TextDirection.ltr, child: userName()),

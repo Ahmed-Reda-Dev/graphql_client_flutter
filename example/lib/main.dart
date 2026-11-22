@@ -51,6 +51,8 @@ Future<void> main() async {
     // Keeps results on disk so the list shows instantly and offline.
     cache: GraphQLCache(
       store: await PersistentStore.open(),
+      // Keeps the cache small: the least recently used objects go first.
+      maxEntities: 2000,
       // Countries are identified by `code`, not `id`.
       typePolicies: {
         'Country': const TypePolicy(keyFields: {'code': true}),

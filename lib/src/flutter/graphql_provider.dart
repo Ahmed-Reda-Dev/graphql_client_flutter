@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
 import '../core/client/graphql_client.dart';
@@ -8,19 +10,35 @@ import '../core/client/graphql_client.dart';
 /// runApp(GraphQLProvider(client: client, child: const MyApp()));
 /// ```
 ///
+/// It also tells the client when the app goes to the background and comes
+/// back (see [GraphQLClient.setAppVisible]): polling pauses while the app
+/// is hidden, and watched queries refresh when it returns. Pass
+/// `handleAppLifecycle: false` to manage that yourself.
+///
 /// The provider does not own the client: dispose it yourself when the app
 /// no longer needs it.
-class GraphQLProvider extends InheritedWidget {
+class GraphQLProvider extends StatefulWidget {
   /// Provides [client] to [child].
-  const GraphQLProvider(
-      {super.key, required this.client, required super.child});
+  const GraphQLProvider({
+    super.key,
+    required this.client,
+    required this.child,
+    this.handleAppLifecycle = true,
+  });
 
   /// The provided client.
   final GraphQLClient client;
 
+  /// The widget below this one.
+  final Widget child;
+
+  /// Whether to call [GraphQLClient.setAppVisible] when the app is hidden
+  /// or shown.
+  final bool handleAppLifecycle;
+
   /// The nearest client, or null if there is no [GraphQLProvider] above.
   static GraphQLClient? maybeOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<GraphQLProvider>()?.client;
+      context.dependOnInheritedWidgetOfExactType<_GraphQLScope>()?.client;
 
   /// The nearest client.
   ///
@@ -43,7 +61,61 @@ class GraphQLProvider extends InheritedWidget {
   }
 
   @override
-  bool updateShouldNotify(GraphQLProvider oldWidget) =>
+  State<GraphQLProvider> createState() => _GraphQLProviderState();
+}
+
+class _GraphQLProviderState extends State<GraphQLProvider> {
+  AppLifecycleListener? _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncLifecycle();
+  }
+
+  @override
+  void didUpdateWidget(GraphQLProvider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncLifecycle();
+  }
+
+  @override
+  void dispose() {
+    _lifecycle?.dispose();
+    super.dispose();
+  }
+
+  /// Listens to the app lifecycle only while [GraphQLProvider.handleAppLifecycle]
+  /// is true. The callbacks read the current client, so swapping clients
+  /// needs no new listener.
+  void _syncLifecycle() {
+    if (widget.handleAppLifecycle == (_lifecycle != null)) return;
+    if (widget.handleAppLifecycle) {
+      _lifecycle = AppLifecycleListener(
+        onHide: () => _setVisible(false),
+        onShow: () => _setVisible(true),
+      );
+    } else {
+      _lifecycle?.dispose();
+      _lifecycle = null;
+    }
+  }
+
+  void _setVisible(bool visible) =>
+      unawaited(widget.client.setAppVisible(visible));
+
+  @override
+  Widget build(BuildContext context) =>
+      _GraphQLScope(client: widget.client, child: widget.child);
+}
+
+class _GraphQLScope extends InheritedWidget {
+  const _GraphQLScope({required this.client, required super.child});
+
+  final GraphQLClient client;
+
+  @override
+  bool updateShouldNotify(_GraphQLScope oldWidget) =>
       !identical(client, oldWidget.client);
 }
 

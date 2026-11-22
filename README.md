@@ -39,7 +39,8 @@ switch (result) {
 | 🔄 **Widgets that stay in sync** | A mutation that changes an object updates every `GraphQLQuery` that shows it. |
 | 🔐 **Auth that just works** | Tokens refresh on HTTP 401 *and* `UNAUTHENTICATED`, once for all pending requests. |
 | 📡 **Resilient subscriptions** | Auto-reconnect with backoff, dead-connection detection, both WebSocket protocols. |
-| 📴 **Offline-ready** | Persist the cache on every platform (optionally encrypted), with `maxAge` freshness and stale-if-error. |
+| 📴 **Offline-first** | Mutations made offline wait in a persisted queue and send themselves later. The cache persists on every platform (optionally encrypted), with `maxAge`, stale-if-error and a size limit. |
+| 🔋 **Lifecycle-aware** | Polling pauses in the background, and queries refresh when the app returns or the network comes back. |
 | 🚀 **Fast by default** | Request deduplication, automatic batching, persisted queries and GET for CDNs. |
 | 🔍 **DevTools extension** | Inspect live operations and browse the cache in a Dart DevTools tab. |
 | 🧪 **Testable by design** | `MockTransport` lets tests run your real app logic against canned responses. |
@@ -48,7 +49,7 @@ switch (result) {
 
 - [Install](#install) · [Quick start](#quick-start) · [Example app](#example-app)
 - [Queries](#queries) · [Mutations](#mutations) · [Subscriptions](#subscriptions) · [Widgets](#widgets)
-- [Errors](#errors) · [Cache](#cache) · [Authentication](#authentication) · [Pagination](#pagination)
+- [Offline-first](#offline-first) · [Errors](#errors) · [Cache](#cache) · [Authentication](#authentication) · [Pagination](#pagination)
 - [File uploads](#file-uploads) · [Performance](#performance) · [Logging and observers](#logging-and-observers)
 - [DevTools](#devtools) · [Testing](#testing) · [Code generation](#code-generation) · [Architecture](#architecture)
 - [Good to know](#good-to-know) · [Migrating from 1.x](#migrating-from-1x) · [Contributing](#contributing)
@@ -245,6 +246,52 @@ GraphQLMutation<Post>(
 - **An inline `parse` closure** does not restart the query.
 - **An invalid document** renders as `QueryError` instead of throwing during build.
 
+## Offline-first
+
+**Mutations that wait for the network.** With `queueIfOffline: true`, a mutation the server can't be reached for is kept, and sent on its own once the network is back. The optimistic response stays on screen meanwhile, and the returned future completes when the server answers:
+
+```dart
+final id = uuid(); // a client-generated id makes a resend harmless
+final result = await client.mutate(
+  addTodo,
+  variables: {'id': id, 'title': title},
+  optimisticResponse: {'addTodo': {'__typename': 'Todo', 'id': id, 'title': title}},
+  queueIfOffline: true,
+);
+```
+
+- Waiting mutations are sent one at a time, in the order they were made.
+- They are saved with the cache, so they survive restarts. With a `PersistentStore` codec, they are encrypted too.
+- A mutation stays queued while a later try may succeed: the server is unreachable, times out, fails (5xx) or asks for credentials (401, for example before the token is restored at startup). It leaves the queue once the server accepts or rejects it.
+- Every attempt is reported to your `GraphQLObserver`s, including attempts for mutations restored after a restart, which no caller is waiting for.
+- `resetStore()` discards the queue, so one user's changes are never sent as another user's.
+- Opt in only for mutations that are safe to send later. Payments, for example, are not.
+
+Show what's waiting:
+
+```dart
+StreamBuilder<int>(
+  stream: client.offlineQueue.changes,
+  initialData: client.offlineQueue.length,
+  builder: (context, count) => Text('${count.data} changes waiting to sync'),
+);
+```
+
+The queue retries after any successful request, on a backoff timer, and when the app returns to the foreground. To also retry the moment the network comes back, report connectivity to the client, for example with [`connectivity_plus`](https://pub.dev/packages/connectivity_plus):
+
+```dart
+Connectivity().onConnectivityChanged.listen((results) {
+  client.setOnline(!results.contains(ConnectivityResult.none));
+});
+```
+
+**App lifecycle.** `GraphQLProvider` tells the client when the app goes to the background, with no setup needed:
+
+- While hidden or offline, watched queries stop polling.
+- When the app returns, each watched query refreshes under the same rule it started with. A `cacheAndNetwork` query refreshes, and a `cacheFirst` query refreshes only if its data is older than `maxAge`.
+
+Without `GraphQLProvider`, call `client.setAppVisible(bool)` yourself.
+
 ## Errors
 
 Operations never throw for request failures. A failure carries a `GraphQLException` with:
@@ -294,6 +341,8 @@ PersistentStore.open(
 
 await client.resetStore();      // on logout: clears memory and disk before returning
 ```
+
+**Size limit.** `GraphQLCache(maxEntities: 5000)` keeps at most that many objects. The least recently used ones are evicted first, and a query whose objects were evicted is simply fetched again. Set the limit well above what one screen shows.
 
 On the web, `PersistentStore` saves to `localStorage` with the same API. Browsers allow about 5 MB per site, and a write over the quota is reported to `onWriteError` while the in-memory cache keeps working.
 
@@ -474,6 +523,7 @@ Custom Dio interceptors that re-send requests can mix in `DioAwareInterceptor`.
 
 - **Batching** only helps when the server accepts batched requests; otherwise the client falls back to single requests on its own.
 - **Browser storage** is limited to about 5 MB per site. For larger offline caches on the web, plug in your own `Store` (for example, one backed by IndexedDB).
+- **Queued mutations are delivered at least once.** If the app is killed while one is in flight, it is sent again on the next start, so give mutations a client-generated id when duplicates matter. After a restart, a queued mutation's optimistic response comes back but its `update` callback does not.
 - **`maxAge`** applies to query results. Individual objects stay in the cache until they are evicted, garbage-collected or replaced.
 
 ## Migrating from 1.x

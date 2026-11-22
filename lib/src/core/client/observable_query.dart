@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:collection/collection.dart';
+import 'package:meta/meta.dart';
 
 import '../json.dart';
 import '../request/graphql_request.dart';
@@ -169,6 +170,25 @@ final class ObservableQuery<T> {
     _pollTimer?.cancel();
   }
 
+  /// Pauses polling while the app is hidden or offline. Called by the
+  /// client.
+  @internal
+  void suspend() => _pollTimer?.cancel();
+
+  /// Resumes polling and refreshes the data if [fetchPolicy] would fetch on
+  /// start (polling queries always refresh). Called by the client when the
+  /// app becomes visible and online again.
+  @internal
+  Future<void> revalidate() async {
+    if (!_active) return;
+    _schedulePolling();
+    if (isFetching) return;
+    final cacheHit = _usesCache && _manager.cache.readQuery(_request) != null;
+    if (_pollInterval != null || _needsNetwork(cacheHit: cacheHit)) {
+      await _fetchNetwork();
+    }
+  }
+
   /// Stops watching and closes [stream].
   Future<void> close() async {
     _stop();
@@ -197,32 +217,40 @@ final class ObservableQuery<T> {
   }
 
   Future<void> _load() async {
-    switch (fetchPolicy) {
-      case FetchPolicy.cacheFirst:
-        if (!_emitFromCache() || _isStale) await _fetchNetwork();
-      case FetchPolicy.cacheAndNetwork:
-        final hit = _emitFromCache();
-        if (!hit || maxAge == null || _isStale) await _fetchNetwork();
-      case FetchPolicy.networkOnly || FetchPolicy.noCache:
-        await _fetchNetwork();
-      case FetchPolicy.cacheOnly:
-        if (!_emitFromCache()) {
-          _emit(GraphQLFailure(GraphQLException(
-            GraphQLErrorKind.cacheMiss,
-            'No complete data in the cache for '
-            '${_request.operationName ?? 'this query'}',
-            operationName: _request.operationName,
-          )));
-        }
+    final cacheHit = switch (fetchPolicy) {
+      FetchPolicy.cacheFirst ||
+      FetchPolicy.cacheAndNetwork ||
+      FetchPolicy.cacheOnly =>
+        _emitFromCache(),
+      FetchPolicy.networkOnly || FetchPolicy.noCache => false,
+    };
+    if (_needsNetwork(cacheHit: cacheHit)) {
+      await _fetchNetwork();
+    } else if (!cacheHit) {
+      _emit(GraphQLFailure(GraphQLException(
+        GraphQLErrorKind.cacheMiss,
+        'No complete data in the cache for '
+        '${_request.operationName ?? 'this query'}',
+        operationName: _request.operationName,
+      )));
     }
   }
+
+  /// Whether loading must go to the network, given whether the cache had a
+  /// complete result.
+  bool _needsNetwork({required bool cacheHit}) => switch (fetchPolicy) {
+        FetchPolicy.cacheFirst => !cacheHit || _isStale,
+        FetchPolicy.cacheAndNetwork => !cacheHit || maxAge == null || _isStale,
+        FetchPolicy.networkOnly || FetchPolicy.noCache => true,
+        FetchPolicy.cacheOnly => false,
+      };
 
   bool get _isStale => _manager.cache.isStale(_request, maxAge);
 
   void _schedulePolling() {
     _pollTimer?.cancel();
     final interval = _pollInterval;
-    if (interval == null) return;
+    if (interval == null || !_manager.isActive) return;
     _pollTimer = Timer.periodic(interval, (_) {
       if (!isFetching) unawaited(_fetchNetwork());
     });

@@ -141,6 +141,40 @@ void main() {
   });
 
   group('GraphQLMutation', () {
+    testWidgets('queueIfOffline keeps it running until it is sent',
+        (tester) async {
+      var reachable = false;
+      mock.on('Rename').respond((_) {
+        if (!reachable) {
+          throw const GraphQLException(GraphQLErrorKind.network, 'offline');
+        }
+        return const GraphQLResponse(data: {
+          'renameUser': {'__typename': 'User', 'id': '1', 'name': 'B'},
+        });
+      });
+
+      await tester.pumpWidget(app(
+        client,
+        GraphQLMutation<JsonMap>(
+          document: renameUser,
+          queueIfOffline: true,
+          builder: (context, state, run) => _Button(
+            onPressed: () => run(variables: {'id': '1', 'name': 'B'}),
+            child: Text(state is MutationSuccess ? 'done' : 'waiting'),
+          ),
+        ),
+      ));
+      await tester.tap(find.byType(_Button));
+      await tester.pump();
+      expect(client.offlineQueue.length, 1);
+
+      reachable = true;
+      await tester.runAsync(client.offlineQueue.flush);
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('done'), findsOneWidget);
+    });
+
     testWidgets('moves through idle, running and success', (tester) async {
       mock = MockTransport(latency: const Duration(milliseconds: 10));
       client = GraphQLClient.custom(transport: mock);
@@ -278,6 +312,60 @@ void main() {
     await refetch;
     await tester.pump();
     expect(find.text('Ada'), findsOneWidget);
+  });
+
+  group('GraphQLProvider lifecycle', () {
+    Future<void> setLifecycle(
+      WidgetTester tester,
+      List<AppLifecycleState> states,
+    ) async {
+      for (final state in states) {
+        tester.binding.handleAppLifecycleStateChanged(state);
+      }
+      await tester.pump();
+    }
+
+    const toBackground = [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+    ];
+    const toForeground = [
+      AppLifecycleState.inactive,
+      AppLifecycleState.resumed,
+    ];
+
+    testWidgets('tells the client when the app is hidden and shown',
+        (tester) async {
+      await tester.pumpWidget(app(client, const SizedBox()));
+
+      await setLifecycle(tester, toBackground);
+      expect(client.isAppVisible, isFalse);
+
+      await setLifecycle(tester, toForeground);
+      expect(client.isAppVisible, isTrue);
+    });
+
+    testWidgets('handleAppLifecycle: false leaves the client alone',
+        (tester) async {
+      await tester.pumpWidget(GraphQLProvider(
+        client: client,
+        handleAppLifecycle: false,
+        child: const SizedBox(),
+      ));
+
+      await setLifecycle(tester, toBackground);
+      expect(client.isAppVisible, isTrue);
+      await setLifecycle(tester, toForeground);
+    });
+
+    testWidgets('a dialog over the app does not count as hidden',
+        (tester) async {
+      await tester.pumpWidget(app(client, const SizedBox()));
+
+      await setLifecycle(tester, [AppLifecycleState.inactive]);
+      expect(client.isAppVisible, isTrue);
+      await setLifecycle(tester, [AppLifecycleState.resumed]);
+    });
   });
 
   testWidgets('a missing provider explains the fix', (tester) async {

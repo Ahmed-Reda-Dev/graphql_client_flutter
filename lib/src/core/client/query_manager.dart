@@ -12,6 +12,7 @@ import '../response/graphql_result.dart';
 import '../transport/graphql_transport.dart';
 import 'graphql_observer.dart';
 import 'observable_query.dart';
+import 'offline_queue.dart';
 import 'result_mapper.dart';
 
 /// Updates the cache after a mutation. [data] is the mutation's result data
@@ -24,11 +25,23 @@ typedef CacheUpdater = void Function(GraphQLCache cache, JsonMap data);
 /// API.
 final class QueryManager {
   /// Creates a manager.
+  ///
+  /// Restores mutations queued offline before the last shutdown and starts
+  /// sending them.
   QueryManager({
     required this.transport,
     required this.cache,
     required this.observers,
-  });
+    RetryDelay? offlineRetryDelay,
+  }) {
+    observers.add(
+      offlineQueue = OfflineQueue(
+        cache: cache,
+        send: fetch,
+        retryDelay: offlineRetryDelay,
+      ),
+    );
+  }
 
   /// Sends requests.
   final GraphQLTransport transport;
@@ -39,9 +52,55 @@ final class QueryManager {
   /// Receive operation events.
   final List<GraphQLObserver> observers;
 
+  /// Mutations waiting for the network (`queueIfOffline`).
+  late final OfflineQueue offlineQueue;
+
   final Map<String, Future<GraphQLResponse>> _inflight = {};
   final Set<ObservableQuery<Object?>> _watched = {};
   int _optimisticIds = 0;
+  bool _appVisible = true;
+  bool _online = true;
+
+  /// Whether the app is in the foreground (see [setAppVisible]).
+  bool get isAppVisible => _appVisible;
+
+  /// Whether the device is believed to be online (see [setOnline]).
+  bool get isOnline => _online;
+
+  /// Whether watched queries may poll and refresh: the app is visible and
+  /// online.
+  bool get isActive => _appVisible && _online;
+
+  /// Records whether the app is visible. See [_setActivity].
+  Future<void> setAppVisible(bool visible) =>
+      _setActivity(visible: visible, online: _online);
+
+  /// Records whether the device is online. See [_setActivity].
+  Future<void> setOnline(bool online) =>
+      _setActivity(visible: _appVisible, online: online);
+
+  /// Pauses watched queries' polling when the client becomes inactive, and
+  /// refreshes them (as if they had just started) when it becomes active
+  /// again.
+  Future<void> _setActivity({
+    required bool visible,
+    required bool online,
+  }) async {
+    final wasActive = isActive;
+    _appVisible = visible;
+    _online = online;
+    offlineQueue.setPaused(!online);
+    if (wasActive == isActive) return;
+
+    final queries = _watched.toList();
+    if (!isActive) {
+      for (final query in queries) {
+        query.suspend();
+      }
+      return;
+    }
+    await Future.wait(queries.map((query) => query.revalidate()));
+  }
 
   /// Currently watched queries.
   Iterable<ObservableQuery<Object?>> get watched => _watched;
@@ -220,6 +279,10 @@ final class QueryManager {
 
   /// Runs a mutation, applying [optimisticResponse] while it is in flight.
   ///
+  /// With [queueIfOffline], the mutation goes through [offlineQueue]: it
+  /// waits there (optimistic data still applied) while the server is
+  /// unreachable. [cancelToken] does not apply to queued mutations.
+  ///
   /// An exception thrown by [update] is reported to the current [Zone]
   /// rather than turning a mutation the server accepted into a failure.
   Future<GraphQLResult<T>> mutate<T>(
@@ -230,6 +293,7 @@ final class QueryManager {
     JsonMap? optimisticResponse,
     CacheUpdater? update,
     List<String> refetchQueries = const [],
+    bool queueIfOffline = false,
   }) async {
     final layerId = 'mutation-${++_optimisticIds}';
     if (optimisticResponse != null) {
@@ -242,7 +306,12 @@ final class QueryManager {
     final generation = cache.generation;
     final GraphQLResponse response;
     try {
-      response = await fetch(request, cancelToken: cancelToken);
+      response = queueIfOffline
+          ? await offlineQueue.enqueue(
+              request,
+              optimisticResponse: optimisticResponse,
+            )
+          : await fetch(request, cancelToken: cancelToken);
     } catch (e, stackTrace) {
       return GraphQLFailure(ResultMapper.toException(e, stackTrace, request));
     } finally {

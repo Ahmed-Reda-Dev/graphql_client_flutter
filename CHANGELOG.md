@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0]
+
+### Added
+- **Offline mutation queue:** `mutate(queueIfOffline: true)` (also on `GraphQLMutation`) keeps a mutation while the server is unreachable and sends it once the network is back.
+  - The optimistic response stays applied until then, and the returned future completes with the server's answer.
+  - Queued mutations are saved with the cache (encrypted by a store codec), survive restarts, and are sent in order.
+  - Retries happen after any successful request, on a backoff timer (`offlineRetryDelay`), when the app returns to the foreground, and on `setOnline(true)`.
+  - `client.offlineQueue` exposes `length`, `changes`, `flush()` and `clear()`. `resetStore()` discards the queue.
+- **App lifecycle awareness:** `client.setAppVisible(bool)` pauses polling in the background, and refreshes watched queries when the app returns, following each query's fetch policy and `maxAge`. `GraphQLProvider` calls it on its own (opt out with `handleAppLifecycle: false`).
+- **Connectivity awareness:** `client.setOnline(bool)` pauses polling and the offline queue while offline, and refreshes watched queries and sends queued mutations when the device is back online.
+- **Cache size limit:** `GraphQLCache(maxEntities:)` evicts the least recently used objects past the limit. Root types and bookkeeping entries are never evicted.
+
+### Changed
+- `GraphQLProvider` is now a `StatefulWidget` (it listens to the app lifecycle). `GraphQLProvider.of`, `maybeOf` and `context.graphQLClient` work as before.
+
 ## [2.1.0]
 
 ### Added

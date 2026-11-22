@@ -50,6 +50,7 @@ class GraphQLMutation<T> extends StatefulWidget {
     this.errorPolicy,
     this.update,
     this.refetchQueries = const [],
+    this.queueIfOffline = false,
     this.onCompleted,
     this.onError,
     this.client,
@@ -72,6 +73,11 @@ class GraphQLMutation<T> extends StatefulWidget {
 
   /// Watched queries to refetch after success, by operation name.
   final List<String> refetchQueries;
+
+  /// Keeps the mutation while the server is unreachable and sends it later
+  /// (see `GraphQLClient.mutate`). The state stays loading until then; the
+  /// optimistic response is shown meanwhile.
+  final bool queueIfOffline;
 
   /// Called with the parsed data after success, while the widget is still
   /// mounted (so it can safely use its context, e.g. to navigate).
@@ -109,6 +115,7 @@ class _GraphQLMutationState<T> extends State<GraphQLMutation<T>> {
       parse: widget.parse,
       errorPolicy: widget.errorPolicy,
       optimisticResponse: optimisticResponse,
+      queueIfOffline: widget.queueIfOffline,
       update: widget.update,
       refetchQueries: widget.refetchQueries,
     );

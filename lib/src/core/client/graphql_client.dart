@@ -20,6 +20,7 @@ import '../transport/websocket/subscription_protocol.dart';
 import '../transport/websocket/websocket_transport.dart';
 import 'graphql_observer.dart';
 import 'observable_query.dart';
+import 'offline_queue.dart';
 import 'query_manager.dart';
 import 'result_mapper.dart';
 
@@ -64,6 +65,8 @@ final class GraphQLClient {
   /// - [logging] / [logger]: logs operations with credentials redacted.
   /// - [interceptors]: extra Dio interceptors, run after the built-in ones.
   /// - [httpClientAdapter]: custom Dio adapter (pinning, proxies, tests).
+  /// - [offlineRetryDelay]: wait before each automatic retry of the
+  ///   [offlineQueue] (default: 2s, 4s, 8s... up to a minute).
   factory GraphQLClient(
     String endpoint, {
     String? subscriptionEndpoint,
@@ -90,6 +93,7 @@ final class GraphQLClient {
     List<Interceptor> interceptors = const [],
     HttpClientAdapter? httpClientAdapter,
     List<GraphQLObserver> observers = const [],
+    RetryDelay? offlineRetryDelay,
   }) {
     assert(
       refreshToken == null || token != null,
@@ -142,6 +146,7 @@ final class GraphQLClient {
       defaultMaxAge: defaultMaxAge,
       addTypename: addTypename,
       observers: observers,
+      offlineRetryDelay: offlineRetryDelay,
     );
   }
 
@@ -155,10 +160,12 @@ final class GraphQLClient {
     this.defaultMaxAge,
     this.addTypename = true,
     List<GraphQLObserver> observers = const [],
+    RetryDelay? offlineRetryDelay,
   }) : _manager = QueryManager(
           transport: transport,
           cache: cache ?? GraphQLCache(),
           observers: [...observers],
+          offlineRetryDelay: offlineRetryDelay,
         ) {
     if (devToolsEnabled) _attachDevTools(transport);
   }
@@ -201,6 +208,9 @@ final class GraphQLClient {
 
   /// The normalized cache. Read, write or evict data directly.
   GraphQLCache get cache => _manager.cache;
+
+  /// Mutations made with `queueIfOffline: true` that wait for the network.
+  OfflineQueue get offlineQueue => _manager.offlineQueue;
 
   /// Runs a query once.
   ///
@@ -248,6 +258,10 @@ final class GraphQLClient {
   /// - [update]: edits the cache with the result, e.g. to add a created
   ///   item to a list. Also runs with the optimistic response.
   /// - [refetchQueries]: names of watched queries to refetch on success.
+  /// - [queueIfOffline]: if the server cannot be reached, keep the mutation
+  ///   (saved with the cache) and send it when it can; the returned future
+  ///   completes then. Only for mutations that are safe to send later; see
+  ///   [OfflineQueue].
   Future<GraphQLResult<T>> mutate<T>(
     String document, {
     JsonMap variables = const {},
@@ -259,6 +273,7 @@ final class GraphQLClient {
     List<String> refetchQueries = const [],
     Map<String, String> headers = const {},
     CancellationToken? cancelToken,
+    bool queueIfOffline = false,
   }) async {
     final request = _requestOrFailure(
       document,
@@ -278,6 +293,7 @@ final class GraphQLClient {
       optimisticResponse: optimisticResponse,
       update: update,
       refetchQueries: refetchQueries,
+      queueIfOffline: queueIfOffline,
     );
   }
 
@@ -336,6 +352,29 @@ final class GraphQLClient {
     };
   }
 
+  /// Whether the app is in the foreground, as last set by [setAppVisible].
+  bool get isAppVisible => _manager.isAppVisible;
+
+  /// Whether the device is online, as last set by [setOnline].
+  bool get isOnline => _manager.isOnline;
+
+  /// Tells the client whether the app is in the foreground.
+  ///
+  /// While hidden, watched queries stop polling. When the app is visible
+  /// again, they resume polling and refresh the way they did when they
+  /// started (per their fetch policy and `maxAge`).
+  ///
+  /// `GraphQLProvider` calls this automatically.
+  Future<void> setAppVisible(bool visible) => _manager.setAppVisible(visible);
+
+  /// Tells the client whether the device is online, e.g. from the
+  /// `connectivity_plus` package.
+  ///
+  /// While offline, watched queries stop polling. When the device is back
+  /// online (and the app visible), they refresh the way they did when they
+  /// started.
+  Future<void> setOnline(bool online) => _manager.setOnline(online);
+
   /// Refetches watched queries by operation name.
   Future<void> refetchQueries(List<String> operationNames) =>
       _manager.refetch(operationNames);
@@ -347,6 +386,7 @@ final class GraphQLClient {
   /// the previous user remains on disk.
   Future<void> resetStore() async {
     _manager.clearInflight();
+    await offlineQueue.clear(); // Never send them as the next user.
     cache.clear();
     await cache.flush();
     await _manager.refetchAll();
@@ -360,6 +400,7 @@ final class GraphQLClient {
     for (final query in _manager.watched.toList()) {
       await query.close();
     }
+    await offlineQueue.close();
     await _manager.transport.dispose();
     await cache.close();
   }

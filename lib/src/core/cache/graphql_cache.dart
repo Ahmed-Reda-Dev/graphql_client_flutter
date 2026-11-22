@@ -13,6 +13,7 @@ import '../json.dart';
 import '../request/graphql_document.dart';
 import '../request/graphql_request.dart';
 import '../response/graphql_exception.dart';
+import 'entity_lru.dart';
 import 'store/store.dart';
 
 /// A normalized cache of GraphQL results.
@@ -28,6 +29,13 @@ final class GraphQLCache {
   /// [dataIdFromObject] computes ids for every object; [possibleTypes] maps
   /// interfaces and unions to their concrete types for fragment matching.
   ///
+  /// [maxEntities] caps how many objects are kept: past it, the least
+  /// recently read or written ones are evicted, and results that showed
+  /// them are fetched again when next needed. Set it well above what one
+  /// screen shows: a single result with more objects than the limit cannot
+  /// be kept whole, so it is refetched every time. Null (the default) keeps
+  /// everything.
+  ///
   /// [clock] supplies the current time for freshness checks (`maxAge`);
   /// override it in tests.
   GraphQLCache({
@@ -35,9 +43,18 @@ final class GraphQLCache {
     this.typePolicies = const {},
     this.dataIdFromObject,
     this.possibleTypes = const {},
+    int? maxEntities,
     DateTime Function()? clock,
   })  : store = store ?? InMemoryStore(),
-        _clock = clock ?? DateTime.now;
+        _clock = clock ?? DateTime.now {
+    if (maxEntities != null) {
+      _lru = EntityLru(
+        maxEntities,
+        existing: this.store.keys,
+        typePolicies: typePolicies,
+      );
+    }
+  }
 
   /// Where normalized entities are kept.
   final Store store;
@@ -53,6 +70,7 @@ final class GraphQLCache {
 
   final _changes = StreamController<void>.broadcast(sync: false);
   final DateTime Function() _clock;
+  EntityLru? _lru;
 
   /// Store entry holding when each query result was last written, keyed by
   /// a hash of the request. Ids starting with `$` are never entities.
@@ -118,6 +136,7 @@ final class GraphQLCache {
       dataIdFromObject: dataIdFromObject,
       possibleTypes: possibleTypes,
     );
+    _evictOverflow();
     _scheduleNotify();
   }
 
@@ -188,6 +207,7 @@ final class GraphQLCache {
       dataIdFromObject: dataIdFromObject,
       possibleTypes: possibleTypes,
     );
+    _evictOverflow();
     _scheduleNotify();
   }
 
@@ -207,6 +227,7 @@ final class GraphQLCache {
       _writingLayer![id] = null;
     } else {
       store.delete(id);
+      _lru?.remove(id);
     }
     _scheduleNotify();
   }
@@ -221,7 +242,10 @@ final class GraphQLCache {
         .where((id) => !id.startsWith(r'$') && !reachable.contains(id))
         .toList();
     if (unreachable.isEmpty) return;
-    unreachable.forEach(store.delete);
+    for (final id in unreachable) {
+      store.delete(id);
+      _lru?.remove(id);
+    }
     _scheduleNotify();
   }
 
@@ -229,6 +253,7 @@ final class GraphQLCache {
   void clear() {
     _generation++;
     store.clear();
+    _lru?.clear();
     _optimisticLayers.clear();
     _scheduleNotify();
   }
@@ -321,6 +346,7 @@ final class GraphQLCache {
   /// optimistic layer when [optimistic] is true.
   JsonMap? _read(String id, {required bool optimistic}) {
     var entity = store.get(id);
+    if (entity != null) _lru?.touch(id);
     if (!optimistic || _optimisticLayers.isEmpty) return entity;
     for (final layer in _optimisticLayers.values) {
       if (!layer.containsKey(id)) continue;
@@ -337,6 +363,11 @@ final class GraphQLCache {
     final layer = _writingLayer;
     if (layer == null) {
       store.put(id, value);
+      if (value == null) {
+        _lru?.remove(id);
+      } else {
+        _lru?.touch(id);
+      }
       return;
     }
     if (value == null) {
@@ -350,6 +381,12 @@ final class GraphQLCache {
           key: value,
     };
     layer[id] = {...?layer[id], ...changed};
+  }
+
+  /// Deletes the least recently used entities past `maxEntities`.
+  void _evictOverflow() {
+    if (_writingLayer != null) return; // Optimistic writes add no entities.
+    _lru?.takeOverflow().forEach(store.delete);
   }
 
   void _scheduleNotify() {

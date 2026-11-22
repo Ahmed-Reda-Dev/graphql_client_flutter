@@ -28,6 +28,10 @@ Future<void> main(List<String> args) async {
       stdout.writeln('  deleted $path');
     }
     stdout.writeln('Generated ${report.written.length} files.');
+    if (!report.formatted) {
+      stderr.writeln('warning: `dart format` could not run; the files are '
+          'valid but unformatted.');
+    }
   } on CodegenException catch (e) {
     stderr.writeln('error: $e');
     exitCode = 1;

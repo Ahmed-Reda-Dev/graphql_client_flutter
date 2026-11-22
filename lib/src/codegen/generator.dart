@@ -10,6 +10,7 @@ import 'codegen_exception.dart';
 import 'dart_formatter.dart';
 import 'data_class_writer.dart';
 import 'generated_file.dart';
+import 'naming.dart';
 import 'operation_model.dart';
 import 'operation_writer.dart';
 import 'schema_index.dart';
@@ -19,7 +20,11 @@ import 'type_mapper.dart';
 /// What a [Generator] run wrote and deleted.
 final class GenerationReport {
   /// Creates a report.
-  const GenerationReport({required this.written, required this.deleted});
+  const GenerationReport({
+    required this.written,
+    required this.deleted,
+    this.formatted = true,
+  });
 
   /// Generated files, relative to the project.
   final List<String> written;
@@ -27,6 +32,9 @@ final class GenerationReport {
   /// Stale generated files removed (their `.graphql` file is gone or has
   /// no operations left).
   final List<String> deleted;
+
+  /// Whether `dart format` ran; the files are valid but unformatted if not.
+  final bool formatted;
 }
 
 /// Generates Dart for a project: one `.graphql.dart` file next to each
@@ -101,14 +109,15 @@ final class Generator {
       from: config.schema,
     );
 
-    final deleted = _deleteStale(outputs.keys.toSet());
     for (final MapEntry(key: path, value: source) in outputs.entries) {
       File(path).writeAsStringSync(source);
     }
-    await formatDartFiles(outputs.keys);
+    final deleted = _deleteStale(outputs.keys.toSet());
+    final formatted = await formatDartFiles(outputs.keys);
     return GenerationReport(
       written: [for (final path in outputs.keys) p.relative(path, from: root)],
       deleted: deleted,
+      formatted: formatted,
     );
   }
 
@@ -120,9 +129,8 @@ final class Generator {
       final directory = Directory(p.join(root, folder));
       if (!directory.existsSync()) continue;
       paths.addAll([
-        for (final entity in directory.listSync(recursive: true))
-          if (entity is File &&
-              entity.path.endsWith('.graphql') &&
+        for (final entity in _files(directory))
+          if (entity.path.endsWith('.graphql') &&
               !p.equals(entity.path, schemaPath))
             entity.path,
       ]);
@@ -165,20 +173,48 @@ final class Generator {
     return fragments;
   }
 
-  /// Checks [node]'s name is unique across documents.
+  /// Checks [node]'s name is unique across documents, also once turned
+  /// into Dart names (`get_user` and `getUser` would clash).
   static OperationDefinitionNode _unique(
     OperationDefinitionNode node,
     Map<String, OperationDefinitionNode> seen,
   ) {
     final name = node.name?.value;
-    if (name != null && seen.containsKey(name)) {
+    if (name == null) return node;
+    final key = Naming.pascal(name);
+    if (seen[key] case final other?) {
       throw CodegenException(
-        'Another operation is already named "$name"',
+        'Another operation (${other.name?.value}) already generates the '
+        'name "$key"',
         node.name?.span,
       );
     }
-    if (name != null) seen[name] = node;
+    seen[key] = node;
     return node;
+  }
+
+  /// Files under [directory], skipping hidden folders (`.dart_tool`) and
+  /// build output.
+  static Iterable<File> _files(Directory directory) sync* {
+    for (final entity in directory.listSync(recursive: true)) {
+      if (entity is! File) continue;
+      final parts = p.split(p.relative(entity.path, from: directory.path));
+      if (parts.any((part) => part.startsWith('.') || part == 'build')) {
+        continue;
+      }
+      yield entity;
+    }
+  }
+
+  /// The first line of [file], or null if it cannot be read as text.
+  static String? _firstLine(File file) {
+    try {
+      return file.readAsLinesSync().firstOrNull;
+    } on FileSystemException {
+      return null;
+    } on FormatException {
+      return null;
+    }
   }
 
   /// Deletes generated `.graphql.dart` files under the include folders that
@@ -189,14 +225,12 @@ final class Generator {
     for (final folder in config.include) {
       final directory = Directory(p.join(root, folder));
       if (!directory.existsSync()) continue;
-      for (final entity in directory.listSync(recursive: true)) {
-        if (entity is! File ||
-            !entity.path.endsWith('.graphql.dart') ||
+      for (final entity in _files(directory)) {
+        if (!entity.path.endsWith('.graphql.dart') ||
             outputs.any((o) => p.equals(o, entity.path))) {
           continue;
         }
-        final firstLine = entity.readAsLinesSync().firstOrNull;
-        if (firstLine == _header) {
+        if (_firstLine(entity) == _header) {
           entity.deleteSync();
           deleted.add(p.relative(entity.path, from: root));
         }

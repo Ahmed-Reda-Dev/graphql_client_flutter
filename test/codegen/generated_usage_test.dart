@@ -1,6 +1,8 @@
 // Exercises the golden files in generated/: they must compile under this
 // package's strict analysis options and behave as documented.
 import 'package:flutter_test/flutter_test.dart';
+import 'package:graphql_client_flutter/graphql_client_flutter.dart';
+import 'package:graphql_client_flutter/testing.dart';
 
 import 'generated/schema.graphql.dart';
 import 'generated/search.graphql.dart';
@@ -124,6 +126,111 @@ void main() {
     test('a type added later keeps its __typename in toJson', () {
       final json = {'__typename': 'Comment', 'id': '9'};
       expect(AnyNodeData.fromJson({'node': json}).node?.toJson(), json);
+    });
+  });
+
+  group('generated client extensions', () {
+    late MockTransport mock;
+    late GraphQLClient client;
+
+    JsonMap userJson(String name) => {
+          '__typename': 'User',
+          'id': '1',
+          'name': name,
+          'role': 'ADMIN',
+          'createdAt': '2026-01-02T03:04:05.000Z',
+          'avatar': null,
+          'tags': <String>[],
+          'scores': null,
+          'metadata': null,
+          'best': null,
+        };
+
+    setUp(() {
+      mock = MockTransport();
+      client = GraphQLClient.custom(transport: mock);
+    });
+
+    tearDown(() => client.dispose());
+
+    test('queries take typed variables and return typed data', () async {
+      mock.on('GetUser').reply({'user': userJson('Ada')});
+
+      final result = await client.getUser(id: '1');
+
+      expect(result.dataOrNull?.user?.name, 'Ada');
+      expect(mock.requests.single.variables, {'id': '1'});
+    });
+
+    test('optional variables are left out until set', () async {
+      mock.on('GetUser').reply({'user': userJson('Ada')});
+      await client.getUser(id: '1', withEmail: true);
+      expect(mock.requests.single.variables, {'id': '1', 'withEmail': true});
+    });
+
+    test('watch keeps typed data in sync with the cache', () async {
+      mock
+        ..on('GetUser').reply({'user': userJson('Ada')})
+        ..on('RenameUser').reply({
+          'renameUser': {'__typename': 'User', 'id': '1', 'name': 'Ada L.'},
+        });
+      final names = <String?>[];
+      final subscription = client
+          .watchGetUser(id: '1')
+          .stream
+          .listen((r) => names.add(r.dataOrNull?.user?.name));
+      await pumpEventQueue();
+
+      await client.renameUser(id: '1', name: 'Ada L.');
+      await pumpEventQueue();
+
+      expect(names.last, 'Ada L.');
+      await subscription.cancel();
+    });
+
+    test('mutations take a typed optimistic response and update', () async {
+      mock.on('CreateUser').reply({
+        'createUser': {
+          '__typename': 'User',
+          'id': '2',
+          'name': 'Grace',
+          'role': 'GUEST',
+        },
+      });
+      CreateUserData? updated;
+
+      final result = await client.createUser(
+        input: const CreateUserInput(name: 'Grace'),
+        optimisticResponse: const CreateUserData(
+          createUser: CreateUserData$CreateUser(
+            id: 'temp',
+            name: 'Grace',
+            role: Role.guest,
+          ),
+        ),
+        update: (cache, data) => updated = data,
+      );
+
+      expect(result.dataOrNull?.createUser.id, '2');
+      expect(updated?.createUser.role, Role.guest);
+      expect(mock.requests.single.variables, {
+        'input': {'name': 'Grace'},
+      });
+    });
+
+    test('subscriptions stream typed data', () async {
+      mock.on('OnUserAdded').emit([
+        {
+          'userAdded': {'__typename': 'User', 'id': '3', 'name': 'Alan'},
+        },
+      ]);
+
+      final names = await client
+          .onUserAdded()
+          .map((r) => r.dataOrNull?.userAdded.name)
+          .toList();
+
+      expect(names, ['Alan']);
     });
   });
 }

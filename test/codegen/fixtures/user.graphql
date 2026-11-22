@@ -35,3 +35,16 @@ mutation CreateUser($input: CreateUserInput!) {
     role
   }
 }
+
+mutation RenameUser($id: ID!, $name: String!) {
+  renameUser(id: $id, name: $name) {
+    id
+    name
+  }
+}
+
+subscription OnUserAdded {
+  userAdded {
+    ...UserFields
+  }
+}

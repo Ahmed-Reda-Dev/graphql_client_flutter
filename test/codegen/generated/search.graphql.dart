@@ -7,6 +7,77 @@
 import 'package:graphql_client_flutter/graphql_client_flutter.dart';
 import 'schema.graphql.dart';
 
+/// The `Search` document.
+const searchDocument = r'''
+query Search($term: String!) {
+  search(term: $term) {
+    __typename
+    ... on User {
+      id
+      name
+      avatar {
+        url
+      }
+    }
+    ... on Post {
+      id
+      title
+    }
+  }
+}
+''';
+
+/// The variables of `Search` as JSON. Unset optional ones are left out.
+JsonMap searchVariables({
+  required String term,
+}) =>
+    {
+      'term': term,
+    };
+
+/// Runs `Search` with typed variables and data.
+extension SearchOperation on GraphQLClient {
+  /// Runs the `Search` query.
+  Future<GraphQLResult<SearchData>> search({
+    required String term,
+    FetchPolicy? fetchPolicy,
+    ErrorPolicy? errorPolicy,
+    Duration? maxAge,
+    Map<String, String> headers = const {},
+    CancellationToken? cancelToken,
+  }) =>
+      query(
+        searchDocument,
+        variables: searchVariables(term: term),
+        parse: SearchData.fromJson,
+        fetchPolicy: fetchPolicy,
+        errorPolicy: errorPolicy,
+        maxAge: maxAge,
+        headers: headers,
+        cancelToken: cancelToken,
+      );
+
+  /// Watches the `Search` query (see `watchQuery`).
+  ObservableQuery<SearchData> watchSearch({
+    required String term,
+    FetchPolicy fetchPolicy = FetchPolicy.cacheAndNetwork,
+    ErrorPolicy? errorPolicy,
+    Duration? maxAge,
+    Duration? pollInterval,
+    Map<String, String> headers = const {},
+  }) =>
+      watchQuery(
+        searchDocument,
+        variables: searchVariables(term: term),
+        parse: SearchData.fromJson,
+        fetchPolicy: fetchPolicy,
+        errorPolicy: errorPolicy,
+        maxAge: maxAge,
+        pollInterval: pollInterval,
+        headers: headers,
+      );
+}
+
 /// Fields selected on `SearchResult`.
 final class SearchData$Search$Unknown extends SearchData$Search {
   /// Creates the data, e.g. for an optimistic response.
@@ -163,6 +234,69 @@ final class SearchData {
       };
 }
 
+/// The `GetNode` document.
+const getNodeDocument = r'''
+query GetNode($id: ID!) {
+  node(id: $id) {
+    id
+    ... on User {
+      name
+    }
+  }
+}
+''';
+
+/// The variables of `GetNode` as JSON. Unset optional ones are left out.
+JsonMap getNodeVariables({
+  required String id,
+}) =>
+    {
+      'id': id,
+    };
+
+/// Runs `GetNode` with typed variables and data.
+extension GetNodeOperation on GraphQLClient {
+  /// Runs the `GetNode` query.
+  Future<GraphQLResult<GetNodeData>> getNode({
+    required String id,
+    FetchPolicy? fetchPolicy,
+    ErrorPolicy? errorPolicy,
+    Duration? maxAge,
+    Map<String, String> headers = const {},
+    CancellationToken? cancelToken,
+  }) =>
+      query(
+        getNodeDocument,
+        variables: getNodeVariables(id: id),
+        parse: GetNodeData.fromJson,
+        fetchPolicy: fetchPolicy,
+        errorPolicy: errorPolicy,
+        maxAge: maxAge,
+        headers: headers,
+        cancelToken: cancelToken,
+      );
+
+  /// Watches the `GetNode` query (see `watchQuery`).
+  ObservableQuery<GetNodeData> watchGetNode({
+    required String id,
+    FetchPolicy fetchPolicy = FetchPolicy.cacheAndNetwork,
+    ErrorPolicy? errorPolicy,
+    Duration? maxAge,
+    Duration? pollInterval,
+    Map<String, String> headers = const {},
+  }) =>
+      watchQuery(
+        getNodeDocument,
+        variables: getNodeVariables(id: id),
+        parse: GetNodeData.fromJson,
+        fetchPolicy: fetchPolicy,
+        errorPolicy: errorPolicy,
+        maxAge: maxAge,
+        pollInterval: pollInterval,
+        headers: headers,
+      );
+}
+
 /// Fields selected on `Node`.
 final class GetNodeData$Node$Unknown extends GetNodeData$Node {
   /// Creates the data, e.g. for an optimistic response.
@@ -266,6 +400,66 @@ final class GetNodeData {
       };
 }
 
+/// The `AnyNode` document.
+const anyNodeDocument = r'''
+query AnyNode($id: ID!) {
+  node(id: $id) {
+    id
+  }
+}
+''';
+
+/// The variables of `AnyNode` as JSON. Unset optional ones are left out.
+JsonMap anyNodeVariables({
+  required String id,
+}) =>
+    {
+      'id': id,
+    };
+
+/// Runs `AnyNode` with typed variables and data.
+extension AnyNodeOperation on GraphQLClient {
+  /// Runs the `AnyNode` query.
+  Future<GraphQLResult<AnyNodeData>> anyNode({
+    required String id,
+    FetchPolicy? fetchPolicy,
+    ErrorPolicy? errorPolicy,
+    Duration? maxAge,
+    Map<String, String> headers = const {},
+    CancellationToken? cancelToken,
+  }) =>
+      query(
+        anyNodeDocument,
+        variables: anyNodeVariables(id: id),
+        parse: AnyNodeData.fromJson,
+        fetchPolicy: fetchPolicy,
+        errorPolicy: errorPolicy,
+        maxAge: maxAge,
+        headers: headers,
+        cancelToken: cancelToken,
+      );
+
+  /// Watches the `AnyNode` query (see `watchQuery`).
+  ObservableQuery<AnyNodeData> watchAnyNode({
+    required String id,
+    FetchPolicy fetchPolicy = FetchPolicy.cacheAndNetwork,
+    ErrorPolicy? errorPolicy,
+    Duration? maxAge,
+    Duration? pollInterval,
+    Map<String, String> headers = const {},
+  }) =>
+      watchQuery(
+        anyNodeDocument,
+        variables: anyNodeVariables(id: id),
+        parse: AnyNodeData.fromJson,
+        fetchPolicy: fetchPolicy,
+        errorPolicy: errorPolicy,
+        maxAge: maxAge,
+        pollInterval: pollInterval,
+        headers: headers,
+      );
+}
+
 /// Fields selected on `Node`.
 final class AnyNodeData$Node {
   /// Creates the data, e.g. for an optimistic response.
@@ -317,6 +511,60 @@ final class AnyNodeData {
         '__typename': 'Query',
         'node': node?.toJson(),
       };
+}
+
+/// The `Entries` document.
+const entriesDocument = r'''
+query Entries {
+  entries {
+    id
+    owner {
+      name
+    }
+    ... on Post {
+      title
+    }
+  }
+}
+''';
+
+/// Runs `Entries` with typed variables and data.
+extension EntriesOperation on GraphQLClient {
+  /// Runs the `Entries` query.
+  Future<GraphQLResult<EntriesData>> entries({
+    FetchPolicy? fetchPolicy,
+    ErrorPolicy? errorPolicy,
+    Duration? maxAge,
+    Map<String, String> headers = const {},
+    CancellationToken? cancelToken,
+  }) =>
+      query(
+        entriesDocument,
+        parse: EntriesData.fromJson,
+        fetchPolicy: fetchPolicy,
+        errorPolicy: errorPolicy,
+        maxAge: maxAge,
+        headers: headers,
+        cancelToken: cancelToken,
+      );
+
+  /// Watches the `Entries` query (see `watchQuery`).
+  ObservableQuery<EntriesData> watchEntries({
+    FetchPolicy fetchPolicy = FetchPolicy.cacheAndNetwork,
+    ErrorPolicy? errorPolicy,
+    Duration? maxAge,
+    Duration? pollInterval,
+    Map<String, String> headers = const {},
+  }) =>
+      watchQuery(
+        entriesDocument,
+        parse: EntriesData.fromJson,
+        fetchPolicy: fetchPolicy,
+        errorPolicy: errorPolicy,
+        maxAge: maxAge,
+        pollInterval: pollInterval,
+        headers: headers,
+      );
 }
 
 /// Fields selected on `User`.

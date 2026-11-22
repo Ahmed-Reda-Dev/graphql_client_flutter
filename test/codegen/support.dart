@@ -5,6 +5,7 @@ import 'package:gql/language.dart' as gql;
 import 'package:graphql_client_flutter/src/codegen/data_class_writer.dart';
 import 'package:graphql_client_flutter/src/codegen/generated_file.dart';
 import 'package:graphql_client_flutter/src/codegen/operation_model.dart';
+import 'package:graphql_client_flutter/src/codegen/operation_writer.dart';
 import 'package:graphql_client_flutter/src/codegen/schema_index.dart';
 import 'package:graphql_client_flutter/src/codegen/type_mapper.dart';
 
@@ -28,16 +29,25 @@ OperationModelBuilder builderFor(DocumentNode document) =>
         f.name.value: f,
     });
 
-/// The data classes generated for every operation in [document].
+/// The file generated for every operation in [document]: documents,
+/// variables, client extensions and data classes.
 String generateDataClasses(DocumentNode document, {required String from}) {
   final builder = builderFor(document);
-  final classes = [
+  final operations = [
     for (final operation
         in document.definitions.whereType<OperationDefinitionNode>())
-      ...builder.build(operation).classes,
+      builder.build(operation),
   ];
+  final dataWriter = DataClassWriter(fixtureMapper);
+  final operationWriter = OperationWriter(fixtureMapper, builder.fragments);
+  final body = StringBuffer();
+  for (final operation in operations) {
+    body
+      ..write(operationWriter.write(operation))
+      ..write(dataWriter.write(operation.classes));
+  }
   return generatedFile(
-    DataClassWriter(fixtureMapper).write(classes),
+    body.toString(),
     from: from,
     imports: ['schema.graphql.dart'],
   );

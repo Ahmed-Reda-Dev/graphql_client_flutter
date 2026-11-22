@@ -121,6 +121,24 @@ final class Generator {
     );
   }
 
+  /// Changes when the schema or any `.graphql` document is added, removed
+  /// or edited (paths, sizes and modification times), for watch mode.
+  String inputsSignature() {
+    final files = [
+      File(p.join(root, config.schema)),
+      for (final folder in config.include)
+        if (Directory(p.join(root, folder)).existsSync())
+          for (final file in _files(Directory(p.join(root, folder))))
+            if (file.path.endsWith('.graphql')) file,
+    ];
+    return [
+      for (final file in files)
+        if (file.existsSync())
+          '${file.path}:${file.lengthSync()}:'
+              '${file.lastModifiedSync().microsecondsSinceEpoch}',
+    ].join('\n');
+  }
+
   /// Every `.graphql` file under the include folders, except the schema,
   /// parsed, by path (sorted, so output is stable).
   Map<String, DocumentNode> _readDocuments(String schemaPath) {

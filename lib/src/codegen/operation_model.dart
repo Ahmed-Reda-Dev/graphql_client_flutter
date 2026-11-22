@@ -63,6 +63,16 @@ final class FieldModel {
   /// The selection sets merged into [selection].
   final List<SelectionSetNode> selectionSets;
 
+  /// This field with another [type].
+  FieldModel withType(TypeNode type) => FieldModel(
+        responseKey: responseKey,
+        dartName: dartName,
+        type: type,
+        selection: selection,
+        selectionSets: selectionSets,
+        description: description,
+      );
+
   /// The field's description in the schema.
   final String? description;
 
@@ -192,12 +202,22 @@ final class OperationModelBuilder {
             superclass: className, reuse: fallback),
       fallback,
     ];
-    final shared = [
-      for (final field in fallback.fields)
-        if (variants.every((v) => v.fields.any(
-            (f) => f.responseKey == field.responseKey && _sameType(f, field))))
-          field,
-    ];
+    // A field every variant has with the same type, up to nullability, is
+    // declared on the sealed class; nullable if any variant's is (Dart
+    // allows the non-null overrides).
+    final shared = <FieldModel>[];
+    for (final field in fallback.fields) {
+      final matches = [
+        for (final variant in variants)
+          variant.fields
+              .where((f) =>
+                  f.responseKey == field.responseKey && _sameType(f, field))
+              .firstOrNull,
+      ];
+      if (matches.any((m) => m == null)) continue;
+      final anyNullable = matches.any((m) => !m!.type.isNonNull);
+      shared.add(anyNullable ? field.withType(nullable(field.type)) : field);
+    }
     final model = ClassModel(
       name: className,
       typeName: typeName,
@@ -225,9 +245,22 @@ final class OperationModelBuilder {
         in _collectFields(typeName, selectionSets).entries) {
       final first = group.first;
       final fieldName = first.node.name.value;
-      if (fieldName == '__typename') continue; // Known, or kept separately.
+      if (fieldName == '__typename') {
+        // Known per class, or kept as `typename`; an alias asks for a field.
+        if (first.node.alias != null) {
+          fields.add(FieldModel(
+            responseKey: responseKey,
+            dartName: Naming.member(responseKey),
+            type: const NamedTypeNode(
+              name: NameNode(value: 'String'),
+              isNonNull: true,
+            ),
+          ));
+        }
+        continue;
+      }
 
-      final definition = schema.field(typeName, fieldName);
+      final definition = _field(typeName, fieldName);
       if (definition == null) {
         throw CodegenException(
           'Type "$typeName" has no field "$fieldName"',
@@ -275,6 +308,16 @@ final class OperationModelBuilder {
         selectionSets: subSelections,
         description: definition.description?.value,
       ));
+    }
+    final members = <String>{if (keepsTypename) 'typename'};
+    for (final field in fields) {
+      if (!members.add(field.dartName)) {
+        throw CodegenException(
+          'Two fields of $className would both be named "${field.dartName}" '
+          'in Dart; alias one of them',
+          selectionSets.first.span,
+        );
+      }
     }
     final model = ClassModel(
       name: className,
@@ -329,7 +372,32 @@ final class OperationModelBuilder {
   /// same nested class for object fields).
   static bool _sameType(FieldModel a, FieldModel b) =>
       identical(a.selection, b.selection) &&
-      printNode(a.type) == printNode(b.type);
+      printNode(nullable(a.type)) == printNode(nullable(b.type));
+
+  /// The field [fieldName] of [typeName]. On a union or interface, a field
+  /// selected through a fragment that covers all of its types (e.g. an
+  /// interface every union member implements) is looked up on those types;
+  /// it is nullable unless it is non-null on all of them.
+  FieldDefinitionNode? _field(String typeName, String fieldName) {
+    final own = schema.field(typeName, fieldName);
+    if (own != null || !schema.isAbstract(typeName)) return own;
+    final found = [
+      for (final type in schema.possibleTypes(typeName))
+        schema.field(type, fieldName),
+    ];
+    if (found.isEmpty || found.any((f) => f == null)) return null;
+    final first = found.first!;
+    final allNonNull = found.every((f) => f!.type.isNonNull);
+    return allNonNull
+        ? first
+        : FieldDefinitionNode(
+            name: first.name,
+            description: first.description,
+            type: nullable(first.type),
+            args: first.args,
+            span: first.span,
+          );
+  }
 
   static bool _sameNodes(List<SelectionSetNode> a, List<SelectionSetNode> b) =>
       a.length == b.length &&

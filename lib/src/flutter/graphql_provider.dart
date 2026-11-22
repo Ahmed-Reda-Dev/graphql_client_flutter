@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
 import '../core/client/graphql_client.dart';
@@ -90,14 +92,17 @@ class _GraphQLProviderState extends State<GraphQLProvider> {
     if (widget.handleAppLifecycle == (_lifecycle != null)) return;
     if (widget.handleAppLifecycle) {
       _lifecycle = AppLifecycleListener(
-        onHide: () => widget.client.setAppVisible(false),
-        onShow: () => widget.client.setAppVisible(true),
+        onHide: () => _setVisible(false),
+        onShow: () => _setVisible(true),
       );
     } else {
       _lifecycle?.dispose();
       _lifecycle = null;
     }
   }
+
+  void _setVisible(bool visible) =>
+      unawaited(widget.client.setAppVisible(visible));
 
   @override
   Widget build(BuildContext context) =>

@@ -32,7 +32,9 @@ final class GraphQLCache {
   /// [maxEntities] caps how many objects are kept: past it, the least
   /// recently read or written ones are evicted, and results that showed
   /// them are fetched again when next needed. Set it well above what one
-  /// screen shows. Null (the default) keeps everything.
+  /// screen shows: a single result with more objects than the limit cannot
+  /// be kept whole, so it is refetched every time. Null (the default) keeps
+  /// everything.
   ///
   /// [clock] supplies the current time for freshness checks (`maxAge`);
   /// override it in tests.

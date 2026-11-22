@@ -262,7 +262,8 @@ final result = await client.mutate(
 
 - Waiting mutations are sent one at a time, in the order they were made.
 - They are saved with the cache, so they survive restarts. With a `PersistentStore` codec, they are encrypted too.
-- A mutation leaves the queue once the server answers, whether it accepts or rejects it. It stays only while the server can't be reached.
+- A mutation stays queued while a later try may succeed: the server is unreachable, times out, fails (5xx) or asks for credentials (401, for example before the token is restored at startup). It leaves the queue once the server accepts or rejects it.
+- Every attempt is reported to your `GraphQLObserver`s, including attempts for mutations restored after a restart, which no caller is waiting for.
 - `resetStore()` discards the queue, so one user's changes are never sent as another user's.
 - Opt in only for mutations that are safe to send later. Payments, for example, are not.
 

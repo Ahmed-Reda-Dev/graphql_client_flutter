@@ -5,6 +5,7 @@ final class CliOptions {
   /// Creates options.
   const CliOptions({
     this.help = false,
+    this.watch = false,
     this.download = false,
     this.downloadUrl,
     this.headers = const {},
@@ -14,6 +15,7 @@ final class CliOptions {
   /// incomplete option.
   factory CliOptions.parse(List<String> args) {
     var help = false;
+    var watch = false;
     var download = false;
     Uri? downloadUrl;
     final headers = <String, String>{};
@@ -25,6 +27,8 @@ final class CliOptions {
       switch (arg) {
         case '-h' || '--help':
           help = true;
+        case '-w' || '--watch':
+          watch = true;
         case '--download':
           download = true;
           if (next() case final url?) {
@@ -50,6 +54,7 @@ final class CliOptions {
     }
     return CliOptions(
       help: help,
+      watch: watch,
       download: download,
       downloadUrl: downloadUrl,
       headers: headers,
@@ -58,6 +63,9 @@ final class CliOptions {
 
   /// Whether to print the usage.
   final bool help;
+
+  /// Whether to keep regenerating when documents or the schema change.
+  final bool watch;
 
   /// Whether to download the schema before generating.
   final bool download;

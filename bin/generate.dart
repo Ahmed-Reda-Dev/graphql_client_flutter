@@ -1,6 +1,6 @@
 // Generates typed Dart for the .graphql files of a project.
 //
-//   dart run graphql_client_flutter:generate [--download [url]]
+//   dart run graphql_client_flutter:generate [--download [url]] [--watch]
 import 'dart:io';
 
 import 'package:graphql_client_flutter/src/codegen/cli_options.dart';
@@ -8,6 +8,7 @@ import 'package:graphql_client_flutter/src/codegen/codegen_config.dart';
 import 'package:graphql_client_flutter/src/codegen/codegen_exception.dart';
 import 'package:graphql_client_flutter/src/codegen/generator.dart';
 import 'package:graphql_client_flutter/src/codegen/introspection.dart';
+import 'package:graphql_client_flutter/src/codegen/watch.dart';
 
 Future<void> main(List<String> args) async {
   try {
@@ -24,7 +25,23 @@ Future<void> main(List<String> args) async {
     }
     final config = CodegenConfig.fromPubspec(pubspec.readAsStringSync());
     if (options.download) await _download(config, options);
-    await _generate(config);
+    if (options.watch) {
+      final generator = Generator(config);
+      await watchAndGenerate(
+        signature: generator.inputsSignature,
+        generate: () async {
+          // A mistake is reported and watching goes on, so it can be fixed.
+          try {
+            await _generate(generator);
+          } on CodegenException catch (e) {
+            stderr.writeln('error: $e');
+          }
+          stdout.writeln('Watching for changes (Ctrl+C to stop)...');
+        },
+      );
+    } else {
+      await _generate(Generator(config));
+    }
   } on CodegenException catch (e) {
     stderr.writeln('error: $e');
     exitCode = 1;
@@ -45,8 +62,8 @@ Future<void> _download(CodegenConfig config, CliOptions options) async {
   stdout.writeln('  wrote   ${config.schema}');
 }
 
-Future<void> _generate(CodegenConfig config) async {
-  final report = await Generator(config).run();
+Future<void> _generate(Generator generator) async {
+  final report = await generator.run();
   for (final path in report.written) {
     stdout.writeln('  wrote   $path');
   }
@@ -70,6 +87,8 @@ Options:
                           url or the schema_url setting.
   --header "Name: value"  Send a header with --download (repeatable),
                           e.g. --header "Authorization: Bearer \$TOKEN".
+  -w, --watch             Regenerate whenever a .graphql file or the schema
+                          changes.
   -h, --help              Show this help.
 
 Settings, in pubspec.yaml:

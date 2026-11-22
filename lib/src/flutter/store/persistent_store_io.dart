@@ -13,7 +13,7 @@ import 'buffered_store.dart';
 /// All entities are loaded into memory by [open]; changes are written back
 /// after `writeDelay` (batched) using an atomic replace, so a crash during a
 /// write never corrupts the file. On the web the same API saves to
-/// `localStorage`.
+/// IndexedDB.
 ///
 /// **Security:** the file is plain JSON unless you pass a [Codec] that
 /// encrypts it (e.g. AES with a key from `flutter_secure_storage`). Use a

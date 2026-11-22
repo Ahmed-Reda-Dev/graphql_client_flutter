@@ -55,7 +55,7 @@ enum Role {
 
   const Role(this.value);
 
-  /// The value as named in the schema.
+  /// The value as named in the schema, or null for [$unknown].
   final String? value;
 
   /// The value for [json], or [$unknown].

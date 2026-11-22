@@ -80,6 +80,27 @@ void main() {
     );
   });
 
+  test('operation names that become the same Dart name clash', () async {
+    _write(project, 'lib/a.graphql', 'query get_user { user(id: "1") { id } }');
+    _write(project, 'lib/b.graphql', 'query GetUser { user(id: "2") { id } }');
+
+    await expectLater(
+      generate(),
+      throwsA(isA<CodegenException>()
+          .having((e) => e.message, 'message', contains('"GetUser"'))),
+    );
+  });
+
+  test('skips hidden and build folders', () async {
+    _write(project, 'lib/.cache/x.graphql', 'query Hidden { nope }');
+    _write(project, 'lib/build/y.graphql', 'query Built { nope }');
+    _write(project, 'lib/ok.graphql', 'query Ok { user(id: "1") { id } }');
+
+    final report = await generate();
+
+    expect(report.written, contains('lib/ok.graphql.dart'));
+  });
+
   test('removes generated files whose document is gone, and only those',
       () async {
     _write(project, 'lib/old.graphql', 'query Old { user(id: "1") { id } }');

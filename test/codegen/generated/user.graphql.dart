@@ -221,7 +221,7 @@ final class GetUserData$User {
         'id': id,
         'name': name,
         'email': email,
-        'role': role.toJson(),
+        'role': role.value,
         'createdAt': createdAt.toIso8601String(),
         'avatar': avatar?.toJson(),
         'tags': tags,
@@ -353,7 +353,7 @@ final class ListUsersData$Users {
         '__typename': 'User',
         'id': id,
         'name': name,
-        'role': role.toJson(),
+        'role': role.value,
       };
 }
 
@@ -468,7 +468,7 @@ final class CreateUserData$CreateUser {
         '__typename': 'User',
         'id': id,
         'name': name,
-        'role': role.toJson(),
+        'role': role.value,
       };
 }
 

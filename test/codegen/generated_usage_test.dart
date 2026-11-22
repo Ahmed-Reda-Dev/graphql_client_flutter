@@ -73,6 +73,15 @@ void main() {
       expect(user.best, isNull);
     });
 
+    test('an enum value added later survives a round trip as JSON', () {
+      final user = GetUserData.fromJson({
+        'user': {...json['user']!, 'role': 'OWNER'},
+      }).user!;
+      expect(user.role, Role.$unknown);
+      final again = GetUserData$User.fromJson(user.toJson());
+      expect(again.role, Role.$unknown);
+    });
+
     test('write back the same JSON, ready for the cache', () {
       expect(GetUserData.fromJson(json).toJson(), {
         '__typename': 'Query',

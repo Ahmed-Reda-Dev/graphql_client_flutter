@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0]
+
+### Added
+- **Code generation** with `dart run graphql_client_flutter:generate`. It needs no `build_runner` and is configured in `pubspec.yaml` (`schema`, `include`, `scalars`).
+  - Each `.graphql` file gets a `.graphql.dart` file next to it. Each operation becomes a typed `GraphQLClient` extension (`client.getUser(id: '1')`, `client.watchGetUser(...)`, typed mutation `optimisticResponse` and `update`, and subscription streams), plus its document, a variables helper and data classes with `fromJson` and `toJson`.
+  - Enums and input types the operations use are generated next to the schema. Enums get an `$unknown` value for values added to the schema later.
+  - Unions and interfaces become sealed classes with a variant for each type the selection targets, plus a fallback. Fields every variant shares are declared on the sealed class.
+  - Nullability follows the schema. `@include`/`@skip` fields become nullable, fragments are flattened, and fragments may live in other files.
+  - Mistakes are reported with `file:line:column`: unknown fields and fragments, missing selections, unnamed operations, and names that clash. Nothing is written when there is an error, and stale generated files are removed.
+- The example app now uses generated code.
+
 ## [2.4.0]
 
 ### Added

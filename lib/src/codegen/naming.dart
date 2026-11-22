@@ -43,5 +43,8 @@ abstract final class Naming {
     'typedef', 'var', 'void', 'when', 'while', 'with', 'yield',
     // Members every generated class has.
     'hashCode', 'runtimeType', 'toString', 'toJson', 'fromJson', 'values',
+    'typename',
+    // Types a generated field could shadow inside its class.
+    'int', 'num', 'double', 'bool',
   };
 }

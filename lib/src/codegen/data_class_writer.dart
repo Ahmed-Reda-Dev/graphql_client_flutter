@@ -123,7 +123,7 @@ final class DataClassWriter {
           "${model.keepsTypename ? 'typename' : Naming.literal(model.typeName)},");
     for (final f in model.fields) {
       out.writeln('        ${Naming.literal(f.responseKey)}: '
-          '${mapper.toJson(f.type, f.dartName)},');
+          '${mapper.toJson(f.type, f.dartName, data: true)},');
     }
     out
       ..writeln('      };')

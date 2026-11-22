@@ -1,5 +1,6 @@
 import 'package:gql/ast.dart';
 
+import 'codegen_exception.dart';
 import 'naming.dart';
 import 'type_mapper.dart';
 
@@ -54,6 +55,7 @@ final class SchemaTypesWriter {
 
   void _writeEnum(StringBuffer out, EnumTypeDefinitionNode type) {
     final name = type.name.value;
+    _checkUnique(name, [for (final v in type.values) _enumValue(v.name.value)]);
     writeDoc(out, type.description?.value);
     out.writeln('enum $name {');
     for (final value in type.values) {
@@ -69,7 +71,8 @@ final class SchemaTypesWriter {
       ..writeln()
       ..writeln('  const $name(this.value);')
       ..writeln()
-      ..writeln('  /// The value as named in the schema.')
+      ..writeln(
+          '  /// The value as named in the schema, or null for [\$unknown].')
       ..writeln('  final String? value;')
       ..writeln()
       ..writeln('  /// The value for [json], or [\$unknown].')
@@ -97,6 +100,7 @@ final class SchemaTypesWriter {
         ),
     ];
 
+    _checkUnique(name, [for (final f in fields) f.dart]);
     writeDoc(out, type.description?.value);
     out
       ..writeln('final class $name {')
@@ -136,6 +140,18 @@ final class SchemaTypesWriter {
       ..writeln('      };')
       ..writeln('}')
       ..writeln();
+  }
+
+  /// Throws if two of [members] of [typeName] get the same Dart name.
+  static void _checkUnique(String typeName, List<String> members) {
+    final seen = <String>{};
+    for (final member in members) {
+      if (!seen.add(member)) {
+        throw CodegenException(
+          'Two members of "$typeName" would both be named "$member" in Dart',
+        );
+      }
+    }
   }
 
   /// Dart enums already have `index`, `name` and `values`, and generated

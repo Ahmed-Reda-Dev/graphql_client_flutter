@@ -79,15 +79,26 @@ final class TypeMapper {
   }
 
   /// An expression converting the Dart value [source] of [type] to JSON.
-  String toJson(TypeNode type, String source, {int depth = 0}) {
+  ///
+  /// For [data] (response data, e.g. written to the cache), an enum is
+  /// written as its `value`, so `$unknown` becomes null and reads back as
+  /// `$unknown`; for inputs, `toJson` refuses to send `$unknown`.
+  String toJson(
+    TypeNode type,
+    String source, {
+    bool data = false,
+    int depth = 0,
+  }) {
     if (_isIdentityToJson(type)) return source;
     final access = type.isNonNull ? '.' : '?.';
     return switch (type) {
       ListTypeNode(type: final of) => '$source${access}map((e$depth) => '
-          '${toJson(of, 'e$depth', depth: depth + 1)}).toList()',
+          '${toJson(of, 'e$depth', data: data, depth: depth + 1)}).toList()',
       NamedTypeNode(:final name) => _scalars[name.value] == 'DateTime'
           ? '$source${access}toIso8601String()'
-          : '$source${access}toJson()',
+          : data && isEnum(name.value)
+              ? '$source${access}value'
+              : '$source${access}toJson()',
       _ => throw UnsupportedError('Unknown type node $type'),
     };
   }

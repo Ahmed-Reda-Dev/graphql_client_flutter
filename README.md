@@ -34,7 +34,7 @@ switch (result) {
 | Feature | What you get |
 |---|---|
 | ⚡ **One-line setup** | `GraphQLClient(url)` comes with retries, timeouts and a normalized cache. |
-| 🧩 **Typed without codegen** | `parse:` turns the response into your own models. Generated code plugs in too. |
+| 🧩 **Typed your way** | `parse:` turns responses into your own models, or `dart run graphql_client_flutter:generate` writes typed calls like `client.getUser(id: '1')` from your schema, with no `build_runner`. |
 | 🛡️ **No try/catch** | Every call returns a sealed `GraphQLResult`, and failures carry a `kind` and a ready-to-show `userMessage`. |
 | 🔄 **Widgets that stay in sync** | A mutation that changes an object updates every `GraphQLQuery` that shows it. |
 | 🔐 **Auth that just works** | Tokens refresh on HTTP 401 *and* `UNAUTHENTICATED`, once for all pending requests. |
@@ -528,17 +528,71 @@ flutter test                                # replay, no network needed
 
 ## Code generation
 
-You don't need codegen. If you want fully generated types, use [graphql_codegen](https://pub.dev/packages/graphql_codegen) and pass its generated `fromJson` to `parse` (it takes the whole `data` object):
+Codegen is optional: `parse:` works without it. For typed variables and data checked by the compiler, write your operations in `.graphql` files and generate Dart from your schema. It needs no `build_runner`.
+
+**1. Point to your schema** in `pubspec.yaml`:
+
+```yaml
+graphql_client_flutter:
+  schema: lib/graphql/schema.graphql   # SDL; export it from your server
+  scalars:
+    DateTime: DateTime                 # String, int, double, num, bool, DateTime or Object (default)
+```
+
+**2. Write operations** in `.graphql` files anywhere under `lib/`:
+
+```graphql
+# lib/user/user.graphql
+query GetUser($id: ID!) {
+  user(id: $id) { id name role createdAt }
+}
+```
+
+**3. Generate:**
+
+```bash
+dart run graphql_client_flutter:generate
+```
+
+Each `.graphql` file gets a `.graphql.dart` file next to it. The schema gets one too, with the enums and input types your operations use. Now every call is typed:
 
 ```dart
-import 'package:gql/language.dart' show printNode;
+import 'user/user.graphql.dart';
 
-final result = await client.query(
-  printNode(documentNodeQueryGetUser),
-  variables: Variables$Query$GetUser(id: '1').toJson(),
-  parse: Query$GetUser.fromJson,
+final result = await client.getUser(id: '1');  // GraphQLResult<GetUserData>
+final user = result.dataOrNull?.user;          // GetUserData$User?
+print('${user?.name} is ${user?.role}');       // Role.admin
+
+client.watchGetUser(id: '1');                  // ObservableQuery<GetUserData>
+
+await client.createUser(
+  input: CreateUserInput(name: 'Ada'),
+  optimisticResponse: CreateUserData(...),     // typed, written to the cache as JSON
+  update: (cache, data) { ... },               // data is CreateUserData
+  queueIfOffline: true,
 );
 ```
+
+With widgets, pass the generated pieces:
+
+```dart
+GraphQLQuery<GetUserData>(
+  document: getUserDocument,
+  variables: getUserVariables(id: '1'),
+  parse: GetUserData.fromJson,
+  builder: (context, state, query) => ...,
+)
+```
+
+What you get:
+
+- **Null safety from the schema.** Non-null fields are non-nullable in Dart, and fields under `@include`/`@skip` become nullable.
+- **Unions and interfaces become sealed classes**, so a `switch` must handle every type. A fallback variant keeps working when the server adds a new type.
+- **Enums get an `$unknown` value**, so a value added to the schema later doesn't crash older app versions.
+- **Every class has `toJson`**, including `__typename`, so generated data can be used as an optimistic response or written to the cache.
+- **Mistakes are reported with their location**: unknown fields, unknown fragments, names that clash. For example, `lib/user/user.graphql:3:5: Type "User" has no field "nickname"`.
+
+The [example app](example) uses it. Prefer [graphql_codegen](https://pub.dev/packages/graphql_codegen)? Pass its `fromJson` to `parse`; it plugs in the same way.
 
 ## Architecture
 

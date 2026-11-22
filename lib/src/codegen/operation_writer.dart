@@ -66,6 +66,9 @@ final class OperationWriter {
       for (final v in variables) v.param,
     ];
 
+    if (node.type != OperationType.mutation) {
+      _writeTypedOperation(out, name, document, data, params, args);
+    }
     out
       ..writeln('/// Runs `$name` with typed variables and data.')
       ..writeln('extension ${Naming.pascal(name)}Operation on GraphQLClient {');
@@ -138,6 +141,30 @@ final class OperationWriter {
     }
     out
       ..writeln('    };')
+      ..writeln();
+  }
+
+  /// A `TypedOperation` factory, for `GraphQLQuery.operation` and
+  /// `GraphQLSubscription.operation`.
+  void _writeTypedOperation(
+    StringBuffer out,
+    String name,
+    String document,
+    String data,
+    List<String> params,
+    String args,
+  ) {
+    out
+      ..writeln('/// `$name` as a typed operation, e.g. for '
+          '`GraphQLQuery.operation`.')
+      ..write('TypedOperation<$data> ${Naming.camel(name)}Operation(')
+      ..write(params.isEmpty ? '' : '{${params.join(', ')},}')
+      ..writeln(') =>')
+      ..writeln('    TypedOperation(')
+      ..writeln('      document: $document,')
+      ..write(args.isEmpty ? '' : '      variables: $args,\n')
+      ..writeln('      parse: $data.fromJson,')
+      ..writeln('    );')
       ..writeln();
   }
 

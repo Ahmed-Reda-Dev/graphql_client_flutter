@@ -8,6 +8,7 @@ import 'codegen_exception.dart';
 /// ```yaml
 /// graphql_client_flutter:
 ///   schema: lib/graphql/schema.graphql
+///   schema_url: https://api.example.com/graphql   # for --download
 ///   include: [lib]            # folders searched for .graphql files
 ///   scalars:
 ///     DateTime: DateTime      # String, int, double, num, bool, DateTime, Object
@@ -16,6 +17,7 @@ final class CodegenConfig {
   /// Creates settings.
   const CodegenConfig({
     required this.schema,
+    this.schemaUrl,
     this.include = const ['lib'],
     this.scalars = const {},
   });
@@ -42,10 +44,19 @@ final class CodegenConfig {
         '$_section.schema must be the path of your schema (SDL) file',
       );
     }
+    final schemaUrl = section['schema_url'];
+    if (schemaUrl != null &&
+        (schemaUrl is! String ||
+            !(Uri.tryParse(schemaUrl)?.hasScheme ?? false))) {
+      throw const CodegenException(
+        '$_section.schema_url must be the URL of your GraphQL endpoint',
+      );
+    }
     final include = section['include'];
     final scalars = section['scalars'];
     return CodegenConfig(
       schema: schema,
+      schemaUrl: schemaUrl is String ? Uri.parse(schemaUrl) : null,
       include: switch (include) {
         null => const ['lib'],
         final String folder => [folder],
@@ -70,6 +81,9 @@ final class CodegenConfig {
 
   /// The schema file, relative to the project.
   final String schema;
+
+  /// The GraphQL endpoint `--download` reads the schema from, if set.
+  final Uri? schemaUrl;
 
   /// Folders searched (recursively) for `.graphql` documents.
   final List<String> include;

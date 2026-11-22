@@ -130,6 +130,56 @@ void main() {
     expect((await pending).isSuccess, isTrue);
   });
 
+  for (final kind in [
+    GraphQLErrorKind.server,
+    GraphQLErrorKind.timeout,
+    GraphQLErrorKind.unauthenticated,
+  ]) {
+    test('a ${kind.name} failure keeps the mutation queued', () async {
+      var failing = true;
+      mock.on('Rename').respond((_) {
+        if (failing) throw GraphQLException(kind, 'try again later');
+        return GraphQLResponse(data: {'renameUser': userJson('Grace')});
+      });
+      final pending = renameTo('Grace');
+      await pumpEventQueue();
+      expect(client.offlineQueue.length, 1);
+
+      failing = false;
+      await client.offlineQueue.flush();
+      expect((await pending).isSuccess, isTrue);
+    });
+  }
+
+  test('restored mutations are not sent while the client is created', () async {
+    reachable = false;
+    unawaited(renameTo('Grace'));
+    await pumpEventQueue();
+    await client.dispose();
+    final sentBefore = sentNames().length;
+
+    reachable = true;
+    client = newClient();
+    expect(sentNames(), hasLength(sentBefore)); // Deferred, not synchronous.
+    await pumpEventQueue();
+    expect(sentNames(), hasLength(sentBefore + 1));
+  });
+
+  test('a send that finishes after dispose leaves the queue saved', () async {
+    final gate = Completer<void>();
+    mock.on('Rename').respond((_) async {
+      await gate.future;
+      return GraphQLResponse(data: {'renameUser': userJson('Grace')});
+    });
+    unawaited(renameTo('Grace'));
+    await pumpEventQueue();
+    await client.dispose();
+
+    gate.complete();
+    await pumpEventQueue();
+    expect(store.get(r'$offlineQueue'), isNotNull); // Resent next start.
+  });
+
   test('a rejected mutation is dropped and later ones still go', () async {
     mock.on('Fail').respond((_) {
       if (!reachable) {

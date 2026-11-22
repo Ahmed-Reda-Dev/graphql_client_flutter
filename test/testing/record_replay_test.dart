@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -125,6 +126,102 @@ void main() {
     expect(texts, ['hi', 'bye']);
   });
 
+  test('a subscription that fails replays its events, then the failure',
+      () async {
+    server.on('OnMessage').respond((_) =>
+        throw const GraphQLException(GraphQLErrorKind.network, 'dropped'));
+    final recorder = RecordingTransport(server);
+    final request = GraphQLRequest(document: GraphQLDocument.parse(onMessage));
+    await expectLater(recorder.subscribe(request), emitsError(anything));
+
+    final replay = ReplayTransport(recorder.cassette);
+    await expectLater(
+      replay.subscribe(request),
+      emitsError(isA<GraphQLException>()
+          .having((e) => e.kind, 'kind', GraphQLErrorKind.network)),
+    );
+  });
+
+  test('a subscription cancelled before any event is not recorded', () async {
+    server.on('OnMessage').emit([
+      {'message': null},
+    ], interval: const Duration(seconds: 1));
+    final recorder = RecordingTransport(server);
+    final request = GraphQLRequest(document: GraphQLDocument.parse(onMessage));
+    final subscription = recorder.subscribe(request).listen((_) {});
+    await pumpEventQueue();
+    await subscription.cancel();
+
+    expect(recorder.cassette.entries, isEmpty);
+  });
+
+  test('a subscription cancelled after events keeps those events', () async {
+    server.on('OnMessage').emit([
+      {'message': 'first'},
+      {'message': 'second'},
+    ], interval: const Duration(milliseconds: 20));
+    final recorder = RecordingTransport(server);
+    final request = GraphQLRequest(document: GraphQLDocument.parse(onMessage));
+    final received = Completer<void>();
+    final subscription = recorder.subscribe(request).listen((_) {
+      if (!received.isCompleted) received.complete();
+    });
+    await received.future;
+    await subscription.cancel();
+
+    expect(recorder.cassette.entries.single.events, hasLength(1));
+  });
+
+  test('anonymous operations are told apart by their query', () async {
+    final recorder = RecordingTransport(_EchoTransport());
+    final client = GraphQLClient.custom(transport: recorder);
+    await client.query<JsonMap>('{ me { id } }');
+    await client.query<JsonMap>('{ feed { id } }');
+
+    final replay = replaying(Cassette.fromJson(
+        jsonDecode(jsonEncode(recorder.cassette.toJson())) as JsonMap));
+    final feed = await replay.query<JsonMap>('{ feed { id } }');
+    expect(feed.dataOrThrow.containsKey('feed'), isTrue);
+  });
+
+  test('a query changed since recording asks to record it again', () async {
+    final cassette = await record((client) async {
+      await client.query<JsonMap>(getUser, variables: {'id': '1'});
+    });
+
+    final result = await replaying(cassette).query<JsonMap>(
+        r'query GetUser($id: ID!) { user(id: $id) { id name email } }',
+        variables: {'id': '1'});
+
+    expect(result.exceptionOrNull?.message, contains('query changed'));
+  });
+
+  test('the HTTP status survives the round trip', () async {
+    server.on('GetUser', variables: {'id': '5'}).respond(
+        (_) => const GraphQLResponse(data: {'user': null}, statusCode: 203));
+    final cassette = await record((client) async {
+      await client.query<JsonMap>(getUser, variables: {'id': '5'});
+    });
+    final replay = ReplayTransport(cassette);
+
+    final response = await replay.execute(GraphQLRequest(
+      document: GraphQLDocument.parse(getUser),
+      variables: {'id': '5'},
+    ));
+    expect(response.statusCode, 203);
+  });
+
+  test('a cancelled request is not answered from the recording', () async {
+    final cassette = await record((client) async {
+      await client.query<JsonMap>(getUser, variables: {'id': '1'});
+    });
+    final token = CancellationToken()..cancel();
+
+    final result = await replaying(cassette)
+        .query<JsonMap>(getUser, variables: {'id': '1'}, cancelToken: token);
+    expect(result.exceptionOrNull?.kind, GraphQLErrorKind.cancelled);
+  });
+
   test('an unrecorded request fails with a clear explanation', () async {
     final cassette = await record((client) async {
       await client.query<JsonMap>(getUser, variables: {'id': '1'});
@@ -180,5 +277,43 @@ void main() {
       () => Cassette.fromJson({'version': 99, 'entries': <Object?>[]}),
       throwsFormatException,
     );
+    expect(
+      () => Cassette.fromJson({
+        'version': 1,
+        'entries': ['not an entry'],
+      }),
+      throwsFormatException,
+    );
   });
+
+  test('a file that is not a JSON object is rejected', () async {
+    final directory = await Directory.systemTemp.createTemp('cassette');
+    addTearDown(() => directory.delete(recursive: true));
+    final path = '${directory.path}/list.json';
+    File(path).writeAsStringSync('[]');
+
+    await expectLater(Cassette.load(path), throwsFormatException);
+  });
+}
+
+/// Answers any query with an object holding its root field, so recordings
+/// of different anonymous queries differ.
+final class _EchoTransport implements GraphQLTransport {
+  @override
+  Future<GraphQLResponse> execute(
+    GraphQLRequest request, {
+    CancellationToken? cancelToken,
+  }) async {
+    final field = request.document.printed.contains('feed') ? 'feed' : 'me';
+    return GraphQLResponse(data: {
+      field: {'__typename': 'Thing', 'id': field},
+    });
+  }
+
+  @override
+  Stream<GraphQLResponse> subscribe(GraphQLRequest request) =>
+      const Stream.empty();
+
+  @override
+  Future<void> dispose() async {}
 }

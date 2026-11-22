@@ -344,7 +344,7 @@ await client.resetStore();      // on logout: clears memory and disk before retu
 
 **Size limit.** `GraphQLCache(maxEntities: 5000)` keeps at most that many objects. The least recently used ones are evicted first, and a query whose objects were evicted is simply fetched again. Set the limit well above what one screen shows.
 
-On the web, `PersistentStore` saves to IndexedDB with the same API. IndexedDB holds far more than `localStorage`'s 5 MB, typically hundreds of MB depending on the browser and free disk space. Where IndexedDB is blocked (some private modes, sandboxed iframes), the store falls back to `localStorage` on its own. Caches saved by versions before 2.4 are moved over the first time the store opens. A write over the quota is reported to `onWriteError`, and the in-memory cache keeps working.
+On the web, `PersistentStore` saves to IndexedDB with the same API. IndexedDB holds far more than `localStorage`'s 5 MB, typically hundreds of MB depending on the browser and free disk space. Where IndexedDB is blocked (some private modes, sandboxed iframes), the store falls back to `localStorage` on its own. Caches saved by versions before 2.4 are moved over the first time the store opens. Two tabs using the same store name overwrite each other's saved cache (the last write wins). A write over the quota is reported to `onWriteError`, and the in-memory cache keeps working.
 
 Direct access:
 
@@ -433,7 +433,7 @@ GraphQLClient(
 );
 ```
 
-**Large responses** of 50 KB or more are decoded in a background isolate, so long lists don't drop frames. Opening a large `PersistentStore` decodes the file in the background too, unless it uses a `codec`.
+**Large responses** (by content length, 50 KB or more) are decoded in a background isolate on mobile and desktop, so long lists don't drop frames. Opening a large `PersistentStore` decodes the file in the background too, unless it uses a `codec`. The web has no isolates, so there decoding stays on the main thread.
 
 **Batching** sends queries started close together (for example, several widgets loading at once) as one JSON-array request. It needs server support (Apollo Server's `allowBatchedHttpRequests`, Hasura, graphql-java and others). If the server doesn't answer with an array, the client resends the queries individually and stops batching. Mutations and uploads are never batched.
 

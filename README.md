@@ -520,8 +520,8 @@ flutter test                                # replay, no network needed
 ```
 
 - The recording is indented JSON, so it reads well in code review.
-- It holds responses, GraphQL errors, transport failures and subscription events. Requests are matched by operation name and variables.
-- Request headers are never recorded, but responses are saved as the server sent them, so review fixtures for personal data before committing them.
+- It holds responses, GraphQL errors, transport failures and subscription events. Requests are matched by operation name, variables and query text, so a query you edit after recording tells you to record it again rather than replaying stale data.
+- Request headers are never recorded. Variables and responses are saved as they were sent, so record with a test account and check fixtures for passwords, tokens and personal data before committing them.
 - Record in a `test()`, not a `testWidgets()`: widget tests block real HTTP. Replaying works in both.
 
 ## Code generation

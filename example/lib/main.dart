@@ -1,47 +1,14 @@
-// A complete app in one file: countries from a public GraphQL API, with an
-// offline cache, pull-to-refresh, loading and error states.
+// A complete app: countries from a public GraphQL API, with an offline
+// cache, pull-to-refresh, loading and error states.
 //
-// The API (https://countries.trevorblades.com) needs no key.
+// The API (https://countries.trevorblades.com) needs no key. The query lives
+// in lib/countries.graphql; `dart run graphql_client_flutter:generate` turns
+// it into typed Dart (lib/countries.graphql.dart).
 
 import 'package:graphql_client_flutter/graphql_client_flutter.dart';
 import 'package:material_ui/material_ui.dart';
 
-const countriesQuery = r'''
-  query Countries($continent: String!) {
-    countries(filter: { continent: { eq: $continent } }) {
-      code
-      name
-      emoji
-      capital
-      currency
-    }
-  }
-''';
-
-/// An app-level model: `parse` turns raw JSON into these.
-class Country {
-  const Country({
-    required this.code,
-    required this.name,
-    required this.emoji,
-    this.capital,
-    this.currency,
-  });
-
-  factory Country.fromJson(JsonMap json) => Country(
-    code: json['code'] as String,
-    name: json['name'] as String,
-    emoji: json['emoji'] as String,
-    capital: json['capital'] as String?,
-    currency: json['currency'] as String?,
-  );
-
-  final String code;
-  final String name;
-  final String emoji;
-  final String? capital;
-  final String? currency;
-}
+import 'countries.graphql.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -94,12 +61,10 @@ class _CountriesPageState extends State<CountriesPage> {
   @override
   Widget build(BuildContext context) {
     // Changing `variables` loads the new continent automatically.
-    return GraphQLQuery<List<Country>>(
-      document: countriesQuery,
-      variables: {'continent': continent},
-      parse: (data) => (data['countries'] as List)
-          .map((c) => Country.fromJson(c as JsonMap))
-          .toList(),
+    return GraphQLQuery<CountriesData>(
+      document: countriesDocument,
+      variables: countriesVariables(continent: continent),
+      parse: CountriesData.fromJson,
       builder: (context, state, query) => Scaffold(
         appBar: AppBar(
           title: const Text('Countries'),
@@ -128,9 +93,9 @@ class _CountriesPageState extends State<CountriesPage> {
           QueryData(:final data) => RefreshIndicator(
             onRefresh: query.refetch,
             child: ListView.separated(
-              itemCount: data.length,
+              itemCount: data.countries.length,
               separatorBuilder: (_, _) => const Divider(height: 1),
-              itemBuilder: (context, i) => _CountryTile(data[i]),
+              itemBuilder: (context, i) => _CountryTile(data.countries[i]),
             ),
           ),
           QueryError(:final exception) => _ErrorView(
@@ -146,7 +111,7 @@ class _CountriesPageState extends State<CountriesPage> {
 class _CountryTile extends StatelessWidget {
   const _CountryTile(this.country);
 
-  final Country country;
+  final CountriesData$Countries country;
 
   @override
   Widget build(BuildContext context) => ListTile(

@@ -1,0 +1,37 @@
+# The part of https://countries.trevorblades.com's schema this app uses.
+# A full schema works the same way; only the types your operations use are
+# generated.
+
+type Query {
+  countries(filter: CountryFilterInput): [Country!]!
+  country(code: ID!): Country
+}
+
+type Country {
+  code: ID!
+  name: String!
+  emoji: String!
+  capital: String
+  currency: String
+  continent: Continent!
+}
+
+type Continent {
+  code: ID!
+  name: String!
+}
+
+input CountryFilterInput {
+  code: StringQueryOperatorInput
+  continent: StringQueryOperatorInput
+  currency: StringQueryOperatorInput
+  name: StringQueryOperatorInput
+}
+
+input StringQueryOperatorInput {
+  eq: String
+  in: [String!]
+  ne: String
+  nin: [String!]
+  regex: String
+}

@@ -62,6 +62,11 @@ final class TypeMapper {
     ObjectClassNamer? objectClass,
     int depth = 0,
   }) {
+    if (type case NamedTypeNode(:final name, isNonNull: false)) {
+      if (_nullableScalarFromJson(name.value, source) case final simple?) {
+        return simple;
+      }
+    }
     final value = switch (type) {
       ListTypeNode(type: final of) => '($source as List).map((e$depth) => '
           '${fromJson(of, 'e$depth', objectClass: objectClass, depth: depth + 1)})'
@@ -118,6 +123,19 @@ final class TypeMapper {
         'Object' => '$source as Object',
         _ when isEnum(name) => '$name.fromJson($source)',
         _ => '${_namedType(name, objectClass)}.fromJson($source as JsonMap)',
+      };
+
+  /// A direct cast for nullable scalars (`json['x'] as String?`), or null
+  /// for types that need the `== null ? null :` form.
+  String? _nullableScalarFromJson(String name, String source) =>
+      switch (_scalarType(name)) {
+        'String' => '$source as String?',
+        'int' => '($source as num?)?.toInt()',
+        'double' => '($source as num?)?.toDouble()',
+        'num' => '$source as num?',
+        'bool' => '$source as bool?',
+        'Object' => '$source as Object?',
+        _ => null,
       };
 
   /// The Dart type of a scalar named [name], or null if it is not one.

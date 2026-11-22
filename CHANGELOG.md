@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.1]
+
+### Fixed
+- A mutation with a file upload (a `MultipartFile` in its variables) now writes its result to the cache. Before, normalizing failed on the file, so the result was never cached and every upload reported an uncaught `JsonUnsupportedObjectError` to the zone (crash reporters saw it, and tests failed). The cache now keys file arguments as null, as in the JSON the server receives. This covers optimistic responses, `update` callbacks and `cache.readQuery`/`writeQuery` too.
+
 ## [2.6.0]
 
 ### Added

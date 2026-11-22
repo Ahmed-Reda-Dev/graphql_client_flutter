@@ -13,6 +13,7 @@ import '../json.dart';
 import '../request/graphql_document.dart';
 import '../request/graphql_request.dart';
 import '../response/graphql_exception.dart';
+import '../transport/http/multipart_body.dart';
 import 'entity_lru.dart';
 import 'store/store.dart';
 
@@ -93,6 +94,10 @@ final class GraphQLCache {
   int get generation => _generation;
 
   // Operations ---------------------------------------------------------------
+  //
+  // Variables reach normalize with file uploads (`MultipartFile`) replaced
+  // by null, as in the JSON the server receives: normalize encodes field
+  // arguments with `jsonEncode`, which cannot encode a file.
 
   /// Reads the complete result of [request] from the cache, or null when any
   /// selected field is missing.
@@ -104,7 +109,7 @@ final class GraphQLCache {
       read: (id) => _read(id, optimistic: optimistic),
       document: request.document.ast,
       operationName: request.operationName,
-      variables: request.variables,
+      variables: MultipartBody.withoutFiles(request.variables),
       typePolicies: typePolicies,
       dataIdFromObject: dataIdFromObject,
       possibleTypes: possibleTypes,
@@ -130,7 +135,7 @@ final class GraphQLCache {
       write: _write,
       document: request.document.ast,
       operationName: request.operationName,
-      variables: request.variables,
+      variables: MultipartBody.withoutFiles(request.variables),
       data: data,
       typePolicies: typePolicies,
       dataIdFromObject: dataIdFromObject,
@@ -180,7 +185,7 @@ final class GraphQLCache {
         document: _parseFragment(fragment),
         idFields: idFields,
         fragmentName: fragmentName,
-        variables: variables,
+        variables: MultipartBody.withoutFiles(variables),
         typePolicies: typePolicies,
         dataIdFromObject: dataIdFromObject,
         addTypename: true,
@@ -202,7 +207,7 @@ final class GraphQLCache {
       idFields: idFields,
       data: data,
       fragmentName: fragmentName,
-      variables: variables,
+      variables: MultipartBody.withoutFiles(variables),
       typePolicies: typePolicies,
       dataIdFromObject: dataIdFromObject,
       possibleTypes: possibleTypes,

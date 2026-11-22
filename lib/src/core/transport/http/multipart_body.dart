@@ -16,6 +16,25 @@ abstract final class MultipartBody {
         _ => false,
       };
 
+  /// [variables] with every [MultipartFile], at any depth, replaced by null:
+  /// the same JSON the server receives in `operations`. Returns [variables]
+  /// itself when it holds no files.
+  static JsonMap withoutFiles(JsonMap variables) {
+    if (!hasFiles(variables)) return variables;
+
+    Object? strip(Object? value) => switch (value) {
+          MultipartFile() => null,
+          final Map<dynamic, dynamic> map => <String, dynamic>{
+              for (final MapEntry(:key, :value) in map.entries)
+                '$key': strip(value),
+            },
+          final List<dynamic> list => [for (final item in list) strip(item)],
+          _ => value,
+        };
+
+    return strip(variables) as JsonMap;
+  }
+
   /// Builds the multipart form: `operations` (files replaced by null),
   /// `map` (file index to variable paths) and one field per file.
   static FormData encode(GraphQLRequest request) {

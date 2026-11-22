@@ -540,7 +540,7 @@ graphql_client_flutter:
     DateTime: DateTime                 # String, int, double, num, bool, DateTime or Object (default)
 ```
 
-You don't have to export the schema by hand. `--download` asks the server for it (introspection) and writes it as sorted SDL, so a changed schema reads well in a diff:
+You don't have to export the schema by hand. `--download` asks the server for it (introspection) and writes it as sorted SDL, so a changed schema reads well in a diff. Credentials in the URL are hidden from the output, and it warns when an `Authorization` header would go over plain `http`. The SDL holds what codegen needs. Directive definitions and `@deprecated` on arguments are left out, so it works with servers of any age.
 
 ```bash
 dart run graphql_client_flutter:generate --download

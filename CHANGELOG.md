@@ -8,8 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.6.0]
 
 ### Added
-- **`generate --download [url]`** reads the schema from the server by introspection and writes it as SDL, sorted for readable diffs. `--header "Name: value"` (repeatable) adds authentication. Without a URL, it uses the new `schema_url` setting. Errors are explained: an unreachable server, an endpoint that isn't GraphQL, or introspection being disabled.
-- **`generate --watch`** regenerates whenever a `.graphql` file or the schema changes. A mistake is reported and watching goes on.
+- **`generate --download [url]`** reads the schema from the server by introspection and writes it as SDL, sorted for readable diffs.
+  - `--header "Name: value"` (repeatable) adds authentication. Without a URL, it uses the new `schema_url` setting (http or https).
+  - Errors are explained: an unreachable or silent server (60 s timeout), a redirect, an endpoint that isn't GraphQL, introspection being disabled, or an invalid header.
+  - Credentials in the URL are never printed, and sending `Authorization` over plain http gives a warning.
+- **`generate --watch`** regenerates whenever a `.graphql` file or the schema changes.
+  - A mistake, or a file vanishing as an editor saves it, is reported and watching goes on.
+  - Hidden folders, `build` and `node_modules` are never walked.
 - **`TypedOperation<T>`** bundles a document, its variables and its parser.
   - Codegen generates one per query and subscription (`getUserOperation(id: '1')`).
   - `GraphQLQuery.operation(...)` and `GraphQLSubscription.operation(...)` take it, so `T` is inferred.

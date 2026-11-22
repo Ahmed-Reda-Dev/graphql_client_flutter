@@ -61,10 +61,8 @@ class _CountriesPageState extends State<CountriesPage> {
   @override
   Widget build(BuildContext context) {
     // Changing `variables` loads the new continent automatically.
-    return GraphQLQuery<CountriesData>(
-      document: countriesDocument,
-      variables: countriesVariables(continent: continent),
-      parse: CountriesData.fromJson,
+    return GraphQLQuery.operation(
+      countriesOperation(continent: continent),
       builder: (context, state, query) => Scaffold(
         appBar: AppBar(
           title: const Text('Countries'),

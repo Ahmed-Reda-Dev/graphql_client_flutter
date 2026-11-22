@@ -121,6 +121,25 @@ final class Generator {
     );
   }
 
+  /// Changes when the schema or any `.graphql` document is added, removed
+  /// or edited (paths, sizes and modification times), for watch mode.
+  String inputsSignature() {
+    final files = [
+      File(p.join(root, config.schema)),
+      for (final folder in config.include)
+        if (Directory(p.join(root, folder)).existsSync())
+          for (final file in _files(Directory(p.join(root, folder))))
+            if (file.path.endsWith('.graphql')) file,
+    ];
+    return [
+      for (final file in files)
+        // One stat per file: no gap for a rename-on-save to fall into.
+        if (file.statSync() case final stat
+            when stat.type == FileSystemEntityType.file)
+          '${file.path}:${stat.size}:${stat.modified.microsecondsSinceEpoch}',
+    ].join('\n');
+  }
+
   /// Every `.graphql` file under the include folders, except the schema,
   /// parsed, by path (sorted, so output is stable).
   Map<String, DocumentNode> _readDocuments(String schemaPath) {
@@ -196,13 +215,15 @@ final class Generator {
   /// Files under [directory], skipping hidden folders (`.dart_tool`) and
   /// build output.
   static Iterable<File> _files(Directory directory) sync* {
-    for (final entity in directory.listSync(recursive: true)) {
-      if (entity is! File) continue;
-      final parts = p.split(p.relative(entity.path, from: directory.path));
-      if (parts.any((part) => part.startsWith('.') || part == 'build')) {
-        continue;
+    for (final entity in directory.listSync()) {
+      final name = p.basename(entity.path);
+      if (name.startsWith('.')) continue;
+      if (entity is Directory) {
+        // Pruned while walking, so large folders are never listed.
+        if (name != 'build' && name != 'node_modules') yield* _files(entity);
+      } else if (entity is File) {
+        yield entity;
       }
-      yield entity;
     }
   }
 

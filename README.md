@@ -224,9 +224,9 @@ client
 | Widget | Purpose |
 |---|---|
 | `GraphQLProvider` | Makes a client available below it (`context.graphQLClient`). |
-| `GraphQLQuery<T>` | Runs a query and rebuilds on every change. The builder gets a `QueryState<T>` and a controller with `refetch()` and `fetchMore()`. |
+| `GraphQLQuery<T>` | Runs a query and rebuilds on every change. The builder gets a `QueryState<T>` and a controller with `refetch()` and `fetchMore()`. `GraphQLQuery.operation(...)` takes a generated `TypedOperation`. |
 | `GraphQLMutation<T>` | Gives the builder a `run(...)` function and a `MutationState<T>`: idle, running, success or failure. |
-| `GraphQLSubscription<T>` | Subscribes while mounted and rebuilds with each event. |
+| `GraphQLSubscription<T>` | Subscribes while mounted and rebuilds with each event. Also has `.operation(...)`. |
 
 ```dart
 GraphQLMutation<Post>(
@@ -534,9 +534,17 @@ Codegen is optional: `parse:` works without it. For typed variables and data che
 
 ```yaml
 graphql_client_flutter:
-  schema: lib/graphql/schema.graphql   # SDL; export it from your server
+  schema: lib/graphql/schema.graphql             # SDL file the generator reads
+  schema_url: https://api.example.com/graphql    # optional: where --download gets it
   scalars:
     DateTime: DateTime                 # String, int, double, num, bool, DateTime or Object (default)
+```
+
+You don't have to export the schema by hand. `--download` asks the server for it (introspection) and writes it as sorted SDL, so a changed schema reads well in a diff. Credentials in the URL are hidden from the output, and it warns when an `Authorization` header would go over plain `http`. The SDL holds what codegen needs. Directive definitions and `@deprecated` on arguments are left out, so it works with servers of any age.
+
+```bash
+dart run graphql_client_flutter:generate --download
+dart run graphql_client_flutter:generate --download https://api.example.com/graphql --header "Authorization: Bearer $TOKEN"
 ```
 
 **2. Write operations** in `.graphql` files anywhere under `lib/`:
@@ -551,8 +559,11 @@ query GetUser($id: ID!) {
 **3. Generate:**
 
 ```bash
-dart run graphql_client_flutter:generate
+dart run graphql_client_flutter:generate           # once
+dart run graphql_client_flutter:generate --watch   # again on every save
 ```
+
+`--watch` regenerates whenever a `.graphql` file or the schema changes. A mistake is printed and watching goes on, so you can fix it without restarting.
 
 Each `.graphql` file gets a `.graphql.dart` file next to it. The schema gets one too, with the enums and input types your operations use. Now every call is typed:
 
@@ -573,16 +584,19 @@ await client.createUser(
 );
 ```
 
-With widgets, pass the generated pieces:
+With widgets, pass the generated operation. `T` is inferred:
 
 ```dart
-GraphQLQuery<GetUserData>(
-  document: getUserDocument,
-  variables: getUserVariables(id: '1'),
-  parse: GetUserData.fromJson,
-  builder: (context, state, query) => ...,
+GraphQLQuery.operation(
+  getUserOperation(id: '1'),                   // TypedOperation<GetUserData>
+  builder: (context, state, query) => switch (state) {
+    QueryData(:final data) => Text(data.user?.name ?? ''),
+    _ => const CircularProgressIndicator(),
+  },
 )
 ```
+
+`GraphQLSubscription.operation` works the same way. The generated `getUserDocument`, `getUserVariables(...)` and `GetUserData.fromJson` are there too, if you prefer passing them separately.
 
 What you get:
 

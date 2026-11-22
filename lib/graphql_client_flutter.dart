@@ -23,6 +23,7 @@ export 'src/core/request/cancellation_token.dart';
 export 'src/core/request/graphql_document.dart';
 export 'src/core/request/graphql_request.dart';
 export 'src/core/request/policies.dart';
+export 'src/core/request/typed_operation.dart';
 export 'src/core/response/graphql_error.dart';
 export 'src/core/response/graphql_exception.dart';
 export 'src/core/response/graphql_response.dart';

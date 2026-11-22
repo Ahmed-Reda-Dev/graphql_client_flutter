@@ -1,24 +1,29 @@
-# The part of https://countries.trevorblades.com's schema this app uses.
-# A full schema works the same way; only the types your operations use are
-# generated.
+type Continent {
+  code: ID!
+  countries: [Country!]!
+  name: String!
+}
 
-type Query {
-  countries(filter: CountryFilterInput): [Country!]!
-  country(code: ID!): Country
+input ContinentFilterInput {
+  code: StringQueryOperatorInput
 }
 
 type Country {
-  code: ID!
-  name: String!
-  emoji: String!
+  awsRegion: String!
   capital: String
-  currency: String
-  continent: Continent!
-}
-
-type Continent {
   code: ID!
-  name: String!
+  continent: Continent!
+  currencies: [String!]!
+  currency: String
+  emoji: String!
+  emojiU: String!
+  languages: [Language!]!
+  name(lang: String): String!
+  native: String!
+  phone: String!
+  phones: [String!]!
+  states: [State!]!
+  subdivisions: [Subdivision!]!
 }
 
 input CountryFilterInput {
@@ -28,6 +33,33 @@ input CountryFilterInput {
   name: StringQueryOperatorInput
 }
 
+type Language {
+  code: ID!
+  countries: [Country!]!
+  name: String!
+  native: String!
+  rtl: Boolean!
+}
+
+input LanguageFilterInput {
+  code: StringQueryOperatorInput
+}
+
+type Query {
+  continent(code: ID!): Continent
+  continents(filter: ContinentFilterInput = {}): [Continent!]!
+  countries(filter: CountryFilterInput = {}): [Country!]!
+  country(code: ID!): Country
+  language(code: ID!): Language
+  languages(filter: LanguageFilterInput = {}): [Language!]!
+}
+
+type State {
+  code: String
+  country: Country!
+  name: String!
+}
+
 input StringQueryOperatorInput {
   eq: String
   in: [String!]
@@ -35,3 +67,10 @@ input StringQueryOperatorInput {
   nin: [String!]
   regex: String
 }
+
+type Subdivision {
+  code: ID!
+  emoji: String
+  name: String!
+}
+

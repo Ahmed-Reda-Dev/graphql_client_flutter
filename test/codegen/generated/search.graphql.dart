@@ -35,6 +35,16 @@ JsonMap searchVariables({
       'term': term,
     };
 
+/// `Search` as a typed operation, e.g. for `GraphQLQuery.operation`.
+TypedOperation<SearchData> searchOperation({
+  required String term,
+}) =>
+    TypedOperation(
+      document: searchDocument,
+      variables: searchVariables(term: term),
+      parse: SearchData.fromJson,
+    );
+
 /// Runs `Search` with typed variables and data.
 extension SearchOperation on GraphQLClient {
   /// Runs the `Search` query.
@@ -254,6 +264,16 @@ JsonMap getNodeVariables({
       'id': id,
     };
 
+/// `GetNode` as a typed operation, e.g. for `GraphQLQuery.operation`.
+TypedOperation<GetNodeData> getNodeOperation({
+  required String id,
+}) =>
+    TypedOperation(
+      document: getNodeDocument,
+      variables: getNodeVariables(id: id),
+      parse: GetNodeData.fromJson,
+    );
+
 /// Runs `GetNode` with typed variables and data.
 extension GetNodeOperation on GraphQLClient {
   /// Runs the `GetNode` query.
@@ -417,6 +437,16 @@ JsonMap anyNodeVariables({
       'id': id,
     };
 
+/// `AnyNode` as a typed operation, e.g. for `GraphQLQuery.operation`.
+TypedOperation<AnyNodeData> anyNodeOperation({
+  required String id,
+}) =>
+    TypedOperation(
+      document: anyNodeDocument,
+      variables: anyNodeVariables(id: id),
+      parse: AnyNodeData.fromJson,
+    );
+
 /// Runs `AnyNode` with typed variables and data.
 extension AnyNodeOperation on GraphQLClient {
   /// Runs the `AnyNode` query.
@@ -527,6 +557,12 @@ query Entries {
   }
 }
 ''';
+
+/// `Entries` as a typed operation, e.g. for `GraphQLQuery.operation`.
+TypedOperation<EntriesData> entriesOperation() => TypedOperation(
+      document: entriesDocument,
+      parse: EntriesData.fromJson,
+    );
 
 /// Runs `Entries` with typed variables and data.
 extension EntriesOperation on GraphQLClient {

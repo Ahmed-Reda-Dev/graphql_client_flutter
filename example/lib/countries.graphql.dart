@@ -26,6 +26,14 @@ JsonMap countriesVariables({required String continent}) => {
   'continent': continent,
 };
 
+/// `Countries` as a typed operation, e.g. for `GraphQLQuery.operation`.
+TypedOperation<CountriesData> countriesOperation({required String continent}) =>
+    TypedOperation(
+      document: countriesDocument,
+      variables: countriesVariables(continent: continent),
+      parse: CountriesData.fromJson,
+    );
+
 /// Runs `Countries` with typed variables and data.
 extension CountriesOperation on GraphQLClient {
   /// Runs the `Countries` query.

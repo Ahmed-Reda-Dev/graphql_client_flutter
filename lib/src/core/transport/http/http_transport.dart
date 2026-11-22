@@ -43,6 +43,11 @@ final class HttpTransport implements GraphQLTransport {
           // credentials and variables to another host.
           followRedirects: false,
         )) {
+    // Responses of 50 KB or more are decoded in a background isolate so
+    // large lists do not drop frames (Flutter's own threshold for assets).
+    _dio.transformer = FusedTransformer(
+      contentLengthIsolateThreshold: _isolateDecodingThreshold,
+    );
     if (httpClientAdapter != null) _dio.httpClientAdapter = httpClientAdapter;
     for (final interceptor in interceptors) {
       if (interceptor is DioAwareInterceptor) interceptor.attachDio(_dio);
@@ -51,6 +56,8 @@ final class HttpTransport implements GraphQLTransport {
     final batch = this.batch;
     if (batch != null) _batcher = RequestBatcher(batch, _sendBatch);
   }
+
+  static const _isolateDecodingThreshold = 50 * 1024;
 
   /// The GraphQL endpoint URL.
   final String endpoint;

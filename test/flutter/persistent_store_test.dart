@@ -59,6 +59,20 @@ void main() {
     expect(File('${dir.path}/graphql_cache.json.tmp').existsSync(), isFalse);
   });
 
+  test('a large cache file loads (decoded in a background isolate)', () async {
+    final store = await open();
+    for (var i = 0; i < 2000; i++) {
+      store.put('User:$i', {'__typename': 'User', 'id': '$i', 'name': 'U$i'});
+    }
+    await store.close();
+    expect(File('${dir.path}/graphql_cache.json').lengthSync(),
+        greaterThan(50 * 1024));
+
+    final reopened = await open();
+    expect(reopened.keys, hasLength(2000));
+    expect(reopened.get('User:1999')?['name'], 'U1999');
+  });
+
   test('a corrupt file starts an empty store', () async {
     await File('${dir.path}/graphql_cache.json').writeAsString('{not json');
     final store = await open();

@@ -344,7 +344,7 @@ await client.resetStore();      // on logout: clears memory and disk before retu
 
 **Size limit.** `GraphQLCache(maxEntities: 5000)` keeps at most that many objects. The least recently used ones are evicted first, and a query whose objects were evicted is simply fetched again. Set the limit well above what one screen shows.
 
-On the web, `PersistentStore` saves to `localStorage` with the same API. Browsers allow about 5 MB per site, and a write over the quota is reported to `onWriteError` while the in-memory cache keeps working.
+On the web, `PersistentStore` saves to IndexedDB with the same API. IndexedDB holds far more than `localStorage`'s 5 MB, typically hundreds of MB depending on the browser and free disk space. Where IndexedDB is blocked (some private modes, sandboxed iframes), the store falls back to `localStorage` on its own. Caches saved by versions before 2.4 are moved over the first time the store opens. Two tabs using the same store name overwrite each other's saved cache (the last write wins). A write over the quota is reported to `onWriteError`, and the in-memory cache keeps working.
 
 Direct access:
 
@@ -432,6 +432,8 @@ GraphQLClient(
   batch: const BatchOptions(), // queries started within 10 ms share one HTTP request
 );
 ```
+
+**Large responses** (by content length, 50 KB or more) are decoded in a background isolate on mobile and desktop, so long lists don't drop frames. Opening a large `PersistentStore` decodes the file in the background too, unless it uses a `codec`. The web has no isolates, so there decoding stays on the main thread.
 
 **Batching** sends queries started close together (for example, several widgets loading at once) as one JSON-array request. It needs server support (Apollo Server's `allowBatchedHttpRequests`, Hasura, graphql-java and others). If the server doesn't answer with an array, the client resends the queries individually and stops batching. Mutations and uploads are never batched.
 
@@ -560,7 +562,7 @@ Custom Dio interceptors that re-send requests can mix in `DioAwareInterceptor`.
 ## Good to know
 
 - **Batching** only helps when the server accepts batched requests; otherwise the client falls back to single requests on its own.
-- **Browser storage** is limited to about 5 MB per site. For larger offline caches on the web, plug in your own `Store` (for example, one backed by IndexedDB).
+- **Persistent stores save a whole snapshot** after each batch of changes (`writeDelay`). This is fast for typical caches. For caches of many megabytes, combine it with `maxEntities` to keep writes small.
 - **Queued mutations are delivered at least once.** If the app is killed while one is in flight, it is sent again on the next start, so give mutations a client-generated id when duplicates matter. After a restart, a queued mutation's optimistic response comes back but its `update` callback does not.
 - **`maxAge`** applies to query results. Individual objects stay in the cache until they are evicted, garbage-collected or replaced.
 

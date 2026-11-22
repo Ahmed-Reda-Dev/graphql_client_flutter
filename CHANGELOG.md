@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0]
+
+### Added
+- **IndexedDB on the web:** `PersistentStore` now keeps the web cache in IndexedDB, lifting `localStorage`'s ~5 MB limit.
+  - Caches saved by earlier versions are moved over on first open. So is a snapshot left by a session that had to fall back.
+  - Where IndexedDB is blocked (some private modes, sandboxed iframes), the store falls back to `localStorage` automatically.
+
+### Performance
+- On mobile and desktop, HTTP responses of 50 KB or more (by content length) are decoded in a background isolate, using Dio's `FusedTransformer` threshold.
+- Opening a `PersistentStore` whose file is 50 KB or more decodes it in a background isolate, so a large cache no longer blocks the UI thread at startup. Stores with a `codec` still decode on the calling isolate, because a codec may not be sendable.
+
 ## [2.3.0]
 
 ### Added

@@ -1,0 +1,43 @@
+query Search($term: String!) {
+  search(term: $term) {
+    __typename
+    ... on User {
+      id
+      name
+      avatar {
+        url
+      }
+    }
+    ... on Post {
+      id
+      title
+    }
+  }
+}
+
+query GetNode($id: ID!) {
+  node(id: $id) {
+    id
+    ... on User {
+      name
+    }
+  }
+}
+
+query AnyNode($id: ID!) {
+  node(id: $id) {
+    id
+  }
+}
+
+query Entries {
+  entries {
+    id
+    owner {
+      name
+    }
+    ... on Post {
+      title
+    }
+  }
+}

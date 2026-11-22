@@ -3,6 +3,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'generated/schema.graphql.dart';
+import 'generated/search.graphql.dart';
 import 'generated/user.graphql.dart';
 
 void main() {
@@ -79,6 +80,50 @@ void main() {
           'scores': [1.0, null, 2.5]
         },
       });
+    });
+  });
+
+  group('generated sealed classes', () {
+    String describe(SearchData$Search result) => switch (result) {
+          SearchData$Search$User(:final name) => 'user $name',
+          SearchData$Search$Post(:final title) => 'post $title',
+          SearchData$Search$Unknown(:final typename) => 'other $typename',
+        };
+
+    test('pick the variant from __typename, exhaustively', () {
+      final data = SearchData.fromJson({
+        'search': [
+          {'__typename': 'User', 'id': '1', 'name': 'Ada', 'avatar': null},
+          {'__typename': 'Post', 'id': '2', 'title': 'Notes'},
+          {'__typename': 'Comment'},
+        ],
+      });
+      expect(data.search.map(describe),
+          ['user Ada', 'post Notes', 'other Comment']);
+    });
+
+    test('shared fields are available without a switch', () {
+      final data = EntriesData.fromJson({
+        'entries': [
+          {
+            '__typename': 'Post',
+            'id': '1',
+            'owner': {'__typename': 'User', 'name': 'Ada'},
+            'title': 'Notes',
+          },
+          {
+            '__typename': 'Comment',
+            'id': '2',
+            'owner': {'__typename': 'User', 'name': 'Alan'},
+          },
+        ],
+      });
+      expect(data.entries.map((e) => e.owner.name), ['Ada', 'Alan']);
+    });
+
+    test('a type added later keeps its __typename in toJson', () {
+      final json = {'__typename': 'Comment', 'id': '9'};
+      expect(AnyNodeData.fromJson({'node': json}).node?.toJson(), json);
     });
   });
 }

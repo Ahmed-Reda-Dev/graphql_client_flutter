@@ -7,6 +7,7 @@ type Query {
   users(filter: UserFilter, first: Int = 20): [User!]!
   search(term: String!): [SearchResult!]!
   node(id: ID!): Node
+  entries: [Entry!]!
 }
 
 type Mutation {
@@ -41,10 +42,22 @@ type Image {
   width: Int
 }
 
-type Post implements Node {
+type Post implements Node & Entry {
   id: ID!
   title: String!
   author: User!
+  owner: User!
+}
+
+type Comment implements Entry {
+  id: ID!
+  owner: User!
+  text: String!
+}
+
+interface Entry {
+  id: ID!
+  owner: User!
 }
 
 union SearchResult = User | Post

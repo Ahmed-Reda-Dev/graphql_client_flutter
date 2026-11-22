@@ -29,6 +29,7 @@ final class GetUserData$User$Avatar {
   final int? width;
 
   /// This data as JSON, with `__typename`, so it can be written to the cache.
+
   JsonMap toJson() => {
         '__typename': 'Image',
         'url': url,
@@ -52,6 +53,7 @@ final class GetUserData$User$Best {
   final String name;
 
   /// This data as JSON, with `__typename`, so it can be written to the cache.
+
   JsonMap toJson() => {
         '__typename': 'User',
         'name': name,
@@ -131,6 +133,7 @@ final class GetUserData$User {
   final List<GetUserData$User$Best?>? best;
 
   /// This data as JSON, with `__typename`, so it can be written to the cache.
+
   JsonMap toJson() => {
         '__typename': 'User',
         'id': id,
@@ -164,6 +167,7 @@ final class GetUserData {
   final GetUserData$User? user;
 
   /// This data as JSON, with `__typename`, so it can be written to the cache.
+
   JsonMap toJson() => {
         '__typename': 'Query',
         'user': user?.toJson(),
@@ -196,6 +200,7 @@ final class ListUsersData$Users {
   final Role role;
 
   /// This data as JSON, with `__typename`, so it can be written to the cache.
+
   JsonMap toJson() => {
         '__typename': 'User',
         'id': id,
@@ -222,6 +227,7 @@ final class ListUsersData {
   final List<ListUsersData$Users> users;
 
   /// This data as JSON, with `__typename`, so it can be written to the cache.
+
   JsonMap toJson() => {
         '__typename': 'Query',
         'users': users.map((e0) => e0.toJson()).toList(),
@@ -255,6 +261,7 @@ final class CreateUserData$CreateUser {
   final Role role;
 
   /// This data as JSON, with `__typename`, so it can be written to the cache.
+
   JsonMap toJson() => {
         '__typename': 'User',
         'id': id,
@@ -280,6 +287,7 @@ final class CreateUserData {
   final CreateUserData$CreateUser createUser;
 
   /// This data as JSON, with `__typename`, so it can be written to the cache.
+
   JsonMap toJson() => {
         '__typename': 'Mutation',
         'createUser': createUser.toJson(),

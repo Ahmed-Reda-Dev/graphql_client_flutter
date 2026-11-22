@@ -21,5 +21,7 @@ flutter:
   uses-material-design: true
 
 # Typed code for lib/**/*.graphql: dart run graphql_client_flutter:generate
+# (add --download to refresh the schema from schema_url first)
 graphql_client_flutter:
   schema: lib/graphql/schema.graphql
+  schema_url: https://countries.trevorblades.com/graphql

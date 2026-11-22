@@ -42,6 +42,48 @@ final class QueryManager {
   final Map<String, Future<GraphQLResponse>> _inflight = {};
   final Set<ObservableQuery<Object?>> _watched = {};
   int _optimisticIds = 0;
+  bool _appVisible = true;
+  bool _online = true;
+
+  /// Whether the app is in the foreground (see [setAppVisible]).
+  bool get isAppVisible => _appVisible;
+
+  /// Whether the device is believed to be online (see [setOnline]).
+  bool get isOnline => _online;
+
+  /// Whether watched queries may poll and refresh: the app is visible and
+  /// online.
+  bool get isActive => _appVisible && _online;
+
+  /// Records whether the app is visible. See [_setActivity].
+  Future<void> setAppVisible(bool visible) =>
+      _setActivity(visible: visible, online: _online);
+
+  /// Records whether the device is online. See [_setActivity].
+  Future<void> setOnline(bool online) =>
+      _setActivity(visible: _appVisible, online: online);
+
+  /// Pauses watched queries' polling when the client becomes inactive, and
+  /// refreshes them (as if they had just started) when it becomes active
+  /// again.
+  Future<void> _setActivity({
+    required bool visible,
+    required bool online,
+  }) async {
+    final wasActive = isActive;
+    _appVisible = visible;
+    _online = online;
+    if (wasActive == isActive) return;
+
+    final queries = _watched.toList();
+    if (!isActive) {
+      for (final query in queries) {
+        query.suspend();
+      }
+      return;
+    }
+    await Future.wait(queries.map((query) => query.revalidate()));
+  }
 
   /// Currently watched queries.
   Iterable<ObservableQuery<Object?>> get watched => _watched;

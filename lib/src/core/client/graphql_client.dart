@@ -336,6 +336,29 @@ final class GraphQLClient {
     };
   }
 
+  /// Whether the app is in the foreground, as last set by [setAppVisible].
+  bool get isAppVisible => _manager.isAppVisible;
+
+  /// Whether the device is online, as last set by [setOnline].
+  bool get isOnline => _manager.isOnline;
+
+  /// Tells the client whether the app is in the foreground.
+  ///
+  /// While hidden, watched queries stop polling. When the app is visible
+  /// again, they resume polling and refresh the way they did when they
+  /// started (per their fetch policy and `maxAge`).
+  ///
+  /// `GraphQLProvider` calls this automatically.
+  Future<void> setAppVisible(bool visible) => _manager.setAppVisible(visible);
+
+  /// Tells the client whether the device is online, e.g. from the
+  /// `connectivity_plus` package.
+  ///
+  /// While offline, watched queries stop polling. When the device is back
+  /// online (and the app visible), they refresh the way they did when they
+  /// started.
+  Future<void> setOnline(bool online) => _manager.setOnline(online);
+
   /// Refetches watched queries by operation name.
   Future<void> refetchQueries(List<String> operationNames) =>
       _manager.refetch(operationNames);

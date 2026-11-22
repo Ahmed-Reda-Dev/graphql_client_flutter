@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:collection/collection.dart';
+import 'package:meta/meta.dart';
 
 import '../json.dart';
 import '../request/graphql_request.dart';
@@ -169,6 +170,25 @@ final class ObservableQuery<T> {
     _pollTimer?.cancel();
   }
 
+  /// Pauses polling while the app is hidden or offline. Called by the
+  /// client.
+  @internal
+  void suspend() => _pollTimer?.cancel();
+
+  /// Resumes polling and refreshes the data if [fetchPolicy] would fetch on
+  /// start (polling queries always refresh). Called by the client when the
+  /// app becomes visible and online again.
+  @internal
+  Future<void> revalidate() async {
+    if (!_active) return;
+    _schedulePolling();
+    if (isFetching) return;
+    final cacheHit = _usesCache && _manager.cache.readQuery(_request) != null;
+    if (_pollInterval != null || _needsNetwork(cacheHit: cacheHit)) {
+      await _fetchNetwork();
+    }
+  }
+
   /// Stops watching and closes [stream].
   Future<void> close() async {
     _stop();
@@ -230,7 +250,7 @@ final class ObservableQuery<T> {
   void _schedulePolling() {
     _pollTimer?.cancel();
     final interval = _pollInterval;
-    if (interval == null) return;
+    if (interval == null || !_manager.isActive) return;
     _pollTimer = Timer.periodic(interval, (_) {
       if (!isFetching) unawaited(_fetchNetwork());
     });

@@ -23,8 +23,11 @@ typedef RetryDelay = Duration Function(int attempt);
 ///
 /// They are saved in the cache's store (so they survive restarts, encrypted
 /// if the store uses a codec) and sent one at a time, in order. A mutation
-/// stays queued only while the server cannot be reached; any other outcome
-/// (success or an error from the server) removes it.
+/// stays queued while sending it may succeed later: the server is
+/// unreachable, times out, fails (5xx) or asks for credentials (401, e.g.
+/// before the token is restored at startup). Any other answer, a success or
+/// a rejection, removes it. Every attempt, including those for mutations
+/// restored after a restart, is reported to `GraphQLObserver`s.
 ///
 /// The queue retries when the client comes back online
 /// (`GraphQLClient.setOnline`), when the app returns to the foreground,
@@ -63,6 +66,7 @@ final class OfflineQueue extends GraphQLObserver {
   int _failedAttempts = 0;
   int _nextId = 0;
   bool _paused = false;
+  bool _closed = false;
 
   static Duration _defaultRetryDelay(int attempt) =>
       Duration(seconds: math.min(60, 1 << math.min(attempt, 6)));
@@ -103,6 +107,9 @@ final class OfflineQueue extends GraphQLObserver {
     GraphQLRequest request, {
     JsonMap? optimisticResponse,
   }) {
+    if (_closed) {
+      throw _cancelled('The client was disposed');
+    }
     if (!_isJson(request.variables)) {
       throw GraphQLException(
         GraphQLErrorKind.invalidRequest,
@@ -137,7 +144,9 @@ final class OfflineQueue extends GraphQLObserver {
   /// start) and stops retrying.
   @internal
   Future<void> close() async {
-    _paused = true; // A send still in flight must not schedule a retry.
+    // A send still in flight must not retry or touch the closed store; its
+    // mutation stays saved and is sent again after the next start.
+    _closed = _paused = true;
     _retryTimer?.cancel();
     for (final item in _items) {
       if (item.completer case final completer? when !completer.isCompleted) {
@@ -168,18 +177,27 @@ final class OfflineQueue extends GraphQLObserver {
     _retryTimer?.cancel();
     while (_items.isNotEmpty && !_paused) {
       final item = _items.first;
+      GraphQLResponse? response;
+      GraphQLException? error;
       try {
-        _end(item, response: await _send(item.request));
+        response = await _send(item.request);
       } on GraphQLException catch (e) {
-        if (e.kind == GraphQLErrorKind.network) {
-          _scheduleRetry();
-          return;
-        }
-        _end(item, error: e);
+        error = e;
       }
+      if (_closed) return;
+      if (error != null && _isWorthRetrying(error.kind)) {
+        _scheduleRetry();
+        return;
+      }
+      _end(item, response: response, error: error);
     }
     _failedAttempts = 0;
   }
+
+  /// Whether a mutation that failed this way may succeed later. A timeout
+  /// may mean the server ran it; delivery is at least once (see above).
+  static bool _isWorthRetrying(GraphQLErrorKind kind) =>
+      kind.isTransient || kind == GraphQLErrorKind.unauthenticated;
 
   void _scheduleRetry() {
     _retryTimer?.cancel();
@@ -213,8 +231,13 @@ final class OfflineQueue extends GraphQLObserver {
     final completer = item.completer;
     if (completer == null) {
       _cache.removeOptimistic(item.id);
-      if (response case GraphQLResponse(:final data?, hasErrors: false)) {
-        _cache.writeQuery(item.request, data);
+      try {
+        if (response case GraphQLResponse(:final data?, hasErrors: false)) {
+          _cache.writeQuery(item.request, data);
+        }
+      } catch (e, stackTrace) {
+        // Data that does not fit the document must not stall the queue.
+        Zone.current.handleUncaughtError(e, stackTrace);
       }
     } else if (!completer.isCompleted) {
       if (error != null) {
@@ -252,7 +275,8 @@ final class OfflineQueue extends GraphQLObserver {
         );
       }
     }
-    if (_items.isNotEmpty) unawaited(flush());
+    // Deferred so the client is fully built before the first request.
+    if (_items.isNotEmpty) scheduleMicrotask(() => unawaited(flush()));
   }
 
   String _newId() =>

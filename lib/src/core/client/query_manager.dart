@@ -34,12 +34,13 @@ final class QueryManager {
     required this.observers,
     RetryDelay? offlineRetryDelay,
   }) {
-    offlineQueue = OfflineQueue(
-      cache: cache,
-      send: fetch,
-      retryDelay: offlineRetryDelay,
+    observers.add(
+      offlineQueue = OfflineQueue(
+        cache: cache,
+        send: fetch,
+        retryDelay: offlineRetryDelay,
+      ),
     );
-    observers.add(offlineQueue);
   }
 
   /// Sends requests.

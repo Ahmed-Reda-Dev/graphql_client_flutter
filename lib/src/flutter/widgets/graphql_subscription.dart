@@ -7,6 +7,7 @@ import '../../core/client/graphql_client.dart';
 import '../../core/client/result_mapper.dart';
 import '../../core/json.dart';
 import '../../core/request/policies.dart';
+import '../../core/request/typed_operation.dart';
 import '../../core/response/graphql_result.dart';
 import '../graphql_provider.dart';
 import '../query_state.dart';
@@ -47,6 +48,20 @@ class GraphQLSubscription<T> extends StatefulWidget {
     this.onData,
     this.client,
   });
+
+  /// Runs a generated [operation] (see `TypedOperation`), so the document,
+  /// variables and parser come from one typed value.
+  GraphQLSubscription.operation(
+    TypedOperation<T> operation, {
+    super.key,
+    required this.builder,
+    this.errorPolicy,
+    this.onData,
+    this.client,
+  })  : document = operation.document,
+        variables = operation.variables,
+        operationName = null,
+        parse = operation.parse;
 
   /// The subscription document.
   final String document;

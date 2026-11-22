@@ -8,6 +8,7 @@ import '../../core/client/observable_query.dart';
 import '../../core/client/result_mapper.dart';
 import '../../core/json.dart';
 import '../../core/request/policies.dart';
+import '../../core/request/typed_operation.dart';
 import '../../core/response/graphql_exception.dart';
 import '../../core/response/graphql_result.dart';
 import '../graphql_provider.dart';
@@ -74,6 +75,29 @@ class GraphQLQuery<T> extends StatefulWidget {
     this.pollInterval,
     this.client,
   });
+
+  /// Runs a generated [operation] (see `TypedOperation`), so the document,
+  /// variables and parser come from one typed value:
+  ///
+  /// ```dart
+  /// GraphQLQuery.operation(
+  ///   getUserOperation(id: id),
+  ///   builder: (context, state, query) => ...,
+  /// )
+  /// ```
+  GraphQLQuery.operation(
+    TypedOperation<T> operation, {
+    super.key,
+    required this.builder,
+    this.fetchPolicy = FetchPolicy.cacheAndNetwork,
+    this.errorPolicy,
+    this.maxAge,
+    this.pollInterval,
+    this.client,
+  })  : document = operation.document,
+        variables = operation.variables,
+        operationName = null,
+        parse = operation.parse;
 
   /// The query document.
   final String document;

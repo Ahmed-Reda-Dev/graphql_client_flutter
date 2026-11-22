@@ -18,7 +18,7 @@ export 'src/core/client/offline_queue.dart' show OfflineQueue, RetryDelay;
 export 'src/core/client/query_manager.dart' show CacheUpdater;
 export 'src/core/client/relay_pagination.dart';
 export 'src/core/client/result_mapper.dart' show DataParser;
-export 'src/core/json.dart';
+export 'src/core/json.dart' show JsonMap;
 export 'src/core/request/cancellation_token.dart';
 export 'src/core/request/graphql_document.dart';
 export 'src/core/request/graphql_request.dart';

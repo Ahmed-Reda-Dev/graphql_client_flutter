@@ -197,6 +197,49 @@ void main() {
       );
     });
 
+    test('gives up on a server that never answers', () async {
+      handle = (request) => Future<void>.delayed(const Duration(seconds: 5));
+
+      await expectLater(
+        downloadSchema(url, timeout: const Duration(milliseconds: 100)),
+        throwsA(isA<CodegenException>()
+            .having((e) => e.message, 'message', contains('did not answer'))),
+      );
+    });
+
+    test('explains a redirect', () async {
+      handle = (request) async {
+        request.response
+          ..statusCode = 301
+          ..headers.set('location', 'https://elsewhere.test/graphql');
+      };
+
+      await expectLater(
+        downloadSchema(url),
+        throwsA(isA<CodegenException>().having((e) => e.message, 'message',
+            contains('https://elsewhere.test/graphql'))),
+      );
+    });
+
+    test('rejects an invalid header instead of crashing', () async {
+      handle = (request) async {};
+      await expectLater(
+        downloadSchema(url, headers: {'Authorization': 'Bearer a\nb'}),
+        throwsA(isA<CodegenException>()
+            .having((e) => e.message, 'message', contains('header'))),
+      );
+    });
+
+    test('messages never show credentials in the URL', () async {
+      await server.close(force: true);
+      final secret = url.replace(userInfo: 'me:pw', query: 'token=abc');
+      await expectLater(
+        downloadSchema(secret),
+        throwsA(isA<CodegenException>().having((e) => e.message, 'message',
+            allOf(isNot(contains('pw')), isNot(contains('abc'))))),
+      );
+    });
+
     test('explains when the server cannot be reached', () async {
       await server.close(force: true);
       await expectLater(

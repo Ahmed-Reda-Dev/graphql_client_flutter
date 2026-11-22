@@ -30,6 +30,29 @@ void main() {
     await watching;
   });
 
+  test('a failing signature (a file saved by rename) does not stop it',
+      () async {
+    var calls = 0;
+    var runs = 0;
+    final stop = Completer<void>();
+    final watching = watchAndGenerate(
+      signature: () {
+        calls++;
+        if (calls == 2) throw const FileSystemException('vanished');
+        return 'sig$calls';
+      },
+      generate: () async => runs++,
+      interval: const Duration(milliseconds: 5),
+      stop: stop.future,
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    stop.complete();
+    await watching;
+
+    expect(calls, greaterThan(2)); // Kept polling after the failure.
+    expect(runs, greaterThan(1));
+  });
+
   group('inputsSignature', () {
     late Directory project;
     late Generator generator;

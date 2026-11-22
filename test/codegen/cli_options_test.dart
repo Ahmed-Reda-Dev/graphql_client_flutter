@@ -39,6 +39,10 @@ void main() {
   test('mistakes are explained', () {
     expect(() => CliOptions.parse(['--download', 'not a url']),
         error('needs a URL'));
+    expect(() => CliOptions.parse(['--download', 'localhost:3000/graphql']),
+        error('http://'));
+    expect(() => CliOptions.parse(['--header', 'A: b']),
+        error('only with --download'));
     expect(() => CliOptions.parse(['--header']), error('Name: value'));
     expect(
         () => CliOptions.parse(['--header', 'NoColon']), error('Name: value'));
@@ -55,6 +59,11 @@ graphql_client_flutter:
     expect(
       () => CodegenConfig.fromPubspec(
           'graphql_client_flutter:\n  schema: s.graphql\n  schema_url: nope\n'),
+      error('schema_url'),
+    );
+    expect(
+      () => CodegenConfig.fromPubspec('graphql_client_flutter:\n'
+          '  schema: s.graphql\n  schema_url: ftp://api.test/graphql\n'),
       error('schema_url'),
     );
   });

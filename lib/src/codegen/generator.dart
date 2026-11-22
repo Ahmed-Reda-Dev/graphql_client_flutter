@@ -133,9 +133,10 @@ final class Generator {
     ];
     return [
       for (final file in files)
-        if (file.existsSync())
-          '${file.path}:${file.lengthSync()}:'
-              '${file.lastModifiedSync().microsecondsSinceEpoch}',
+        // One stat per file: no gap for a rename-on-save to fall into.
+        if (file.statSync() case final stat
+            when stat.type == FileSystemEntityType.file)
+          '${file.path}:${stat.size}:${stat.modified.microsecondsSinceEpoch}',
     ].join('\n');
   }
 
@@ -214,13 +215,15 @@ final class Generator {
   /// Files under [directory], skipping hidden folders (`.dart_tool`) and
   /// build output.
   static Iterable<File> _files(Directory directory) sync* {
-    for (final entity in directory.listSync(recursive: true)) {
-      if (entity is! File) continue;
-      final parts = p.split(p.relative(entity.path, from: directory.path));
-      if (parts.any((part) => part.startsWith('.') || part == 'build')) {
-        continue;
+    for (final entity in directory.listSync()) {
+      final name = p.basename(entity.path);
+      if (name.startsWith('.')) continue;
+      if (entity is Directory) {
+        // Pruned while walking, so large folders are never listed.
+        if (name != 'build' && name != 'node_modules') yield* _files(entity);
+      } else if (entity is File) {
+        yield entity;
       }
-      yield entity;
     }
   }
 

@@ -9,6 +9,7 @@ import 'package:graphql_client_flutter/src/codegen/codegen_exception.dart';
 import 'package:graphql_client_flutter/src/codegen/generator.dart';
 import 'package:graphql_client_flutter/src/codegen/introspection.dart';
 import 'package:graphql_client_flutter/src/codegen/watch.dart';
+import 'package:graphql_client_flutter/src/core/transport/credential_policy.dart';
 
 Future<void> main(List<String> args) async {
   try {
@@ -35,6 +36,8 @@ Future<void> main(List<String> args) async {
             await _generate(generator);
           } on CodegenException catch (e) {
             stderr.writeln('error: $e');
+          } on FileSystemException catch (e) {
+            stderr.writeln('error: ${e.message} ${e.path ?? ''}');
           }
           stdout.writeln('Watching for changes (Ctrl+C to stop)...');
         },
@@ -56,7 +59,13 @@ Future<void> _download(CodegenConfig config, CliOptions options) async {
       'graphql_client_flutter.schema_url in pubspec.yaml',
     );
   }
-  stdout.writeln('Downloading the schema from $url...');
+  stdout.writeln('Downloading the schema from ${redactUrl(url)}...');
+  final sendsCredentials =
+      options.headers.keys.any((h) => h.toLowerCase() == 'authorization');
+  if (sendsCredentials && !CredentialPolicy.isSafeForCredentials(url)) {
+    stderr.writeln('warning: sending Authorization over plain http to '
+        '${url.host}; use https.');
+  }
   final sdl = await downloadSchema(url, headers: options.headers);
   (File(config.schema)..createSync(recursive: true)).writeAsStringSync(sdl);
   stdout.writeln('  wrote   ${config.schema}');

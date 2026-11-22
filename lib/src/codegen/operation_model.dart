@@ -1,4 +1,5 @@
 import 'package:gql/ast.dart';
+import 'package:gql/language.dart' show printNode;
 
 import 'codegen_exception.dart';
 import 'naming.dart';
@@ -7,12 +8,19 @@ import 'schema_types_writer.dart' show baseName, nullable;
 
 /// A generated data class: the fields one selection set picks from one
 /// GraphQL type.
+///
+/// A selection on a union or interface that has type-specific fragments
+/// becomes a sealed class ([variants] non-empty) with one subclass per
+/// targeted type, plus one for any other type.
 final class ClassModel {
   /// Creates a class model.
   ClassModel({
     required this.name,
     required this.typeName,
     required this.fields,
+    this.variants = const [],
+    this.superclass,
+    this.keepsTypename = false,
   });
 
   /// The Dart class name, e.g. `GetUserData$User`.
@@ -21,8 +29,23 @@ final class ClassModel {
   /// The GraphQL type the selection is on, e.g. `User`.
   final String typeName;
 
-  /// The selected fields, in document order.
+  /// The selected fields, in document order. For a sealed class: the
+  /// fields every variant has, with the same Dart type.
   final List<FieldModel> fields;
+
+  /// For a sealed class: its subclasses, the fallback one last.
+  final List<ClassModel> variants;
+
+  /// For a variant: the sealed class it extends.
+  final String? superclass;
+
+  /// Whether the concrete `__typename` is only known at runtime, so the
+  /// class stores it (a union/interface without variants, or the fallback
+  /// variant).
+  final bool keepsTypename;
+
+  /// Whether this is a sealed class.
+  bool get isSealed => variants.isNotEmpty;
 }
 
 /// One field of a [ClassModel].
@@ -33,8 +56,12 @@ final class FieldModel {
     required this.dartName,
     required this.type,
     this.selection,
+    this.selectionSets = const [],
     this.description,
   });
+
+  /// The selection sets merged into [selection].
+  final List<SelectionSetNode> selectionSets;
 
   /// The field's description in the schema.
   final String? description;
@@ -115,6 +142,16 @@ final class OperationModelBuilder {
       [operation.selectionSet],
       classes,
     );
+    final names = <String>{};
+    for (final model in classes) {
+      if (!names.add(model.name)) {
+        throw CodegenException(
+          'Two generated classes would both be named ${model.name}; '
+          'alias one of the fields',
+          operation.span,
+        );
+      }
+    }
     return OperationModel(
       node: operation,
       name: name,
@@ -131,12 +168,64 @@ final class OperationModelBuilder {
     List<SelectionSetNode> selectionSets,
     List<ClassModel> classes,
   ) {
+    if (!schema.isAbstract(typeName)) {
+      return _buildObject(className, typeName, selectionSets, classes);
+    }
+    final targets = _targetedTypes(typeName, selectionSets);
+    if (targets.isEmpty) {
+      return _buildObject(className, typeName, selectionSets, classes,
+          keepsTypename: true);
+    }
+
+    // The fallback holds the fields every type has; variants reuse its
+    // nested classes where their selection is the same, so shared fields
+    // keep one Dart type.
+    final fallbackName = targets.contains('Unknown')
+        ? '$className\$UnknownType'
+        : '$className\$Unknown';
+    final fallback = _buildObject(
+        fallbackName, typeName, selectionSets, classes,
+        keepsTypename: true, superclass: className, nestedPrefix: className);
+    final variants = [
+      for (final target in targets.toList()..sort())
+        _buildObject('$className\$$target', target, selectionSets, classes,
+            superclass: className, reuse: fallback),
+      fallback,
+    ];
+    final shared = [
+      for (final field in fallback.fields)
+        if (variants.every((v) => v.fields.any(
+            (f) => f.responseKey == field.responseKey && _sameType(f, field))))
+          field,
+    ];
+    final model = ClassModel(
+      name: className,
+      typeName: typeName,
+      fields: shared,
+      variants: variants,
+    );
+    classes.add(model);
+    return model;
+  }
+
+  /// Builds a plain class for [selectionSets] on [typeName]. Fields whose
+  /// selection matches one in [reuse] use its nested class.
+  ClassModel _buildObject(
+    String className,
+    String typeName,
+    List<SelectionSetNode> selectionSets,
+    List<ClassModel> classes, {
+    bool keepsTypename = false,
+    String? superclass,
+    ClassModel? reuse,
+    String? nestedPrefix,
+  }) {
     final fields = <FieldModel>[];
     for (final MapEntry(key: responseKey, value: group)
         in _collectFields(typeName, selectionSets).entries) {
       final first = group.first;
       final fieldName = first.node.name.value;
-      if (fieldName == '__typename') continue; // Constant per class.
+      if (fieldName == '__typename') continue; // Known, or kept separately.
 
       final definition = schema.field(typeName, fieldName);
       if (definition == null) {
@@ -148,19 +237,25 @@ final class OperationModelBuilder {
       var type = definition.type;
       if (group.every((f) => f.conditional)) type = nullable(type);
 
-      ClassModel? selection;
       final subSelections = [
         for (final f in group)
           if (f.node.selectionSet case final set?) set,
       ];
       final fieldType = baseName(type);
+      ClassModel? selection;
       if (subSelections.isNotEmpty) {
-        selection = _buildClass(
-          '$className\$${Naming.pascal(responseKey)}',
-          fieldType,
-          subSelections,
-          classes,
-        );
+        final reused = reuse?.fields
+            .where((f) => f.responseKey == responseKey)
+            .firstOrNull;
+        selection = reused?.selection != null &&
+                _sameNodes(reused!.selectionSets, subSelections)
+            ? reused.selection
+            : _buildClass(
+                '${nestedPrefix ?? className}\$${Naming.pascal(responseKey)}',
+                fieldType,
+                subSelections,
+                classes,
+              );
       } else if (schema.type(fieldType)
           case ObjectTypeDefinitionNode() ||
               InterfaceTypeDefinitionNode() ||
@@ -177,14 +272,69 @@ final class OperationModelBuilder {
         dartName: Naming.member(responseKey),
         type: type,
         selection: selection,
+        selectionSets: subSelections,
         description: definition.description?.value,
       ));
     }
-    final model =
-        ClassModel(name: className, typeName: typeName, fields: fields);
+    final model = ClassModel(
+      name: className,
+      typeName: typeName,
+      fields: fields,
+      superclass: superclass,
+      keepsTypename: keepsTypename,
+    );
     classes.add(model);
     return model;
   }
+
+  /// The concrete types of [typeName] that fragments in [selectionSets]
+  /// single out (a fragment on the type itself, or on an interface it
+  /// implements other than [typeName]).
+  Set<String> _targetedTypes(
+    String typeName,
+    List<SelectionSetNode> selectionSets,
+  ) {
+    final possible = schema.possibleTypes(typeName);
+    final targets = <String>{};
+    void visit(SelectionSetNode set) {
+      for (final selection in set.selections) {
+        final (condition, inner) = switch (selection) {
+          InlineFragmentNode(:final typeCondition, :final selectionSet) => (
+              typeCondition?.on.name.value,
+              selectionSet,
+            ),
+          FragmentSpreadNode(:final name) => (
+              fragments[name.value]?.typeCondition.on.name.value,
+              fragments[name.value]?.selectionSet,
+            ),
+          _ => (null, null),
+        };
+        if (inner == null) continue;
+        if (condition != null && !_applies(condition, typeName)) {
+          targets.addAll(condition == typeName
+              ? const {}
+              : schema.isAbstract(condition)
+                  ? schema.possibleTypes(condition).intersection(possible)
+                  : possible.intersection({condition}));
+        }
+        visit(inner);
+      }
+    }
+
+    selectionSets.forEach(visit);
+    return targets;
+  }
+
+  /// Whether [a] and [b] have the same Dart type (same schema type, and the
+  /// same nested class for object fields).
+  static bool _sameType(FieldModel a, FieldModel b) =>
+      identical(a.selection, b.selection) &&
+      printNode(a.type) == printNode(b.type);
+
+  static bool _sameNodes(List<SelectionSetNode> a, List<SelectionSetNode> b) =>
+      a.length == b.length &&
+      [for (var i = 0; i < a.length; i++) identical(a[i], b[i])]
+          .every((same) => same);
 
   /// The fields [selectionSets] select on [typeName], grouped by response
   /// key in document order, with fragments flattened.
@@ -202,7 +352,7 @@ final class OperationModelBuilder {
             (fields[key] ??= []).add(_CollectedField(selection, isConditional));
           case InlineFragmentNode(:final typeCondition, :final selectionSet):
             final on = typeCondition?.on.name.value ?? typeName;
-            if (_applies(on, typeName, selection)) {
+            if (_applies(on, typeName)) {
               collect(selectionSet, conditional: isConditional);
             }
           case FragmentSpreadNode(:final name):
@@ -213,11 +363,7 @@ final class OperationModelBuilder {
                 selection.span,
               );
             }
-            if (_applies(
-              fragment.typeCondition.on.name.value,
-              typeName,
-              selection,
-            )) {
+            if (_applies(fragment.typeCondition.on.name.value, typeName)) {
               collect(fragment.selectionSet, conditional: isConditional);
             }
           default:
@@ -232,18 +378,14 @@ final class OperationModelBuilder {
     return fields;
   }
 
-  /// Whether a fragment on [condition] always applies to an object of
-  /// [typeName]: the same type, or an interface or union it belongs to.
-  bool _applies(String condition, String typeName, Node at) {
+  /// Whether a fragment on [condition] applies to every object of
+  /// [typeName]: the same type, or a union/interface covering all of its
+  /// possible types.
+  bool _applies(String condition, String typeName) {
     if (condition == typeName) return true;
-    if (schema.possibleTypes(condition).contains(typeName)) return true;
-    if (schema.isAbstract(typeName)) {
-      throw CodegenException(
-        'Fragments on "$condition" inside "$typeName" are not supported yet',
-        at.span,
-      );
-    }
-    return false; // A fragment on another concrete type never applies.
+    final covers = schema.possibleTypes(condition);
+    if (!schema.isAbstract(typeName)) return covers.contains(typeName);
+    return covers.containsAll(schema.possibleTypes(typeName));
   }
 
   static bool _isConditional(SelectionNode selection) {

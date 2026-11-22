@@ -277,9 +277,15 @@ final class ObservableQuery<T> {
       );
       _refetchedIncomplete = false;
       if (result is GraphQLSuccess<T>) {
-        // Unchanged data (e.g. polling) is returned but not re-emitted.
-        final unchanged = _latest is GraphQLSuccess<T> &&
-            _equality.equals(response.data, _latestData);
+        // Unchanged network data (e.g. polling) is returned but not
+        // re-emitted. After cached data it is emitted anyway: the source
+        // changed (the data is now confirmed by the server).
+        final wasNetwork = switch (_latest) {
+          GraphQLSuccess<T>(source: ResultSource.network) => true,
+          _ => false,
+        };
+        final unchanged =
+            wasNetwork && _equality.equals(response.data, _latestData);
         _latestData = response.data;
         if (unchanged) return _latest = result;
       }

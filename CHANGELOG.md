@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0]
+
+### Added
+- **Record and replay** (in `package:graphql_client_flutter/testing.dart`):
+  - `RecordingTransport` wraps a real transport and records every answer into a `Cassette`: responses, GraphQL errors, transport failures and subscription events. Request headers are never recorded.
+  - `ReplayTransport` plays a cassette back without a server. It matches by operation name and variables, replays repeated requests in order, and explains any request that wasn't recorded.
+  - `Cassette.save` and `Cassette.load` write indented JSON fixtures. On the web, use `toJson` and `fromJson`.
+- **`RelayPagination`** for `fetchMore` on Relay-style connections: `merge` appends edges and nodes, while `hasNextPage` and `nextPageVariables` read `pageInfo`.
+
 ## [2.2.0]
 
 ### Added

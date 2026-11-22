@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:path_provider/path_provider.dart';
 
@@ -65,6 +66,10 @@ final class PersistentStore extends BufferedStore {
 
   final File _file;
 
+  /// Files at least this large are decoded in a background isolate, so a
+  /// big cache does not drop frames at startup.
+  static const _isolateDecodingThreshold = 50 * 1024;
+
   @override
   Future<void> persist(String contents) async {
     final temp = File('${_file.path}.tmp');
@@ -77,7 +82,15 @@ final class PersistentStore extends BufferedStore {
     Codec<String, String>? codec,
   ) async {
     if (!await file.exists()) return {};
-    final data = BufferedStore.decode(await file.readAsString(), codec);
+    // A codec may hold objects that cannot be sent to an isolate, so only
+    // plain files are decoded in the background.
+    final path = file.path;
+    final data =
+        codec == null && await file.length() >= _isolateDecodingThreshold
+            ? await Isolate.run(
+                () => BufferedStore.decode(File(path).readAsStringSync(), null),
+              )
+            : BufferedStore.decode(await file.readAsString(), codec);
     if (data == null) {
       // Corrupt, or written with a different codec/key: start empty.
       await file.delete();

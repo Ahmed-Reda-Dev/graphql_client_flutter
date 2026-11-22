@@ -368,6 +368,57 @@ void main() {
     });
   });
 
+  group('typed operations', () {
+    testWidgets('GraphQLQuery.operation takes document, variables and parse',
+        (tester) async {
+      mock.on('GetUser', variables: {'id': '7'}).reply(userJson('7', 'Ada'));
+
+      await tester.pumpWidget(app(
+        client,
+        GraphQLQuery.operation(
+          const TypedOperation(
+            document: getUser,
+            variables: {'id': '7'},
+            parse: parseName,
+          ),
+          builder: (context, state, query) => Text(switch (state) {
+            QueryData(:final data) => 'name: $data',
+            _ => 'waiting',
+          }),
+        ),
+      ));
+      await tester.pump();
+
+      expect(find.text('name: Ada'), findsOneWidget);
+    });
+
+    testWidgets('GraphQLSubscription.operation streams typed events',
+        (tester) async {
+      const onMessage = 'subscription OnMessage { message }';
+      mock.on('OnMessage').emit([
+        {'message': 'hi'},
+      ]);
+
+      await tester.pumpWidget(app(
+        client,
+        GraphQLSubscription.operation(
+          TypedOperation(
+            document: onMessage,
+            parse: (data) => data['message'] as String,
+          ),
+          builder: (context, state) => Text(switch (state) {
+            QueryData(:final data) => data,
+            _ => 'waiting',
+          }),
+        ),
+      ));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('hi'), findsOneWidget);
+    });
+  });
+
   testWidgets('a missing provider explains the fix', (tester) async {
     await tester.pumpWidget(
       Directionality(textDirection: TextDirection.ltr, child: userName()),

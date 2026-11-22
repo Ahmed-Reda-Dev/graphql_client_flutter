@@ -44,6 +44,17 @@ JsonMap getUserVariables({
       if (withEmail case final withEmail?) 'withEmail': withEmail,
     };
 
+/// `GetUser` as a typed operation, e.g. for `GraphQLQuery.operation`.
+TypedOperation<GetUserData> getUserOperation({
+  required String id,
+  bool? withEmail,
+}) =>
+    TypedOperation(
+      document: getUserDocument,
+      variables: getUserVariables(id: id, withEmail: withEmail),
+      parse: GetUserData.fromJson,
+    );
+
 /// Runs `GetUser` with typed variables and data.
 extension GetUserOperation on GraphQLClient {
   /// Runs the `GetUser` query.
@@ -278,6 +289,16 @@ JsonMap listUsersVariables({
     {
       if (filter case final filter?) 'filter': filter.toJson(),
     };
+
+/// `ListUsers` as a typed operation, e.g. for `GraphQLQuery.operation`.
+TypedOperation<ListUsersData> listUsersOperation({
+  UserFilter? filter,
+}) =>
+    TypedOperation(
+      document: listUsersDocument,
+      variables: listUsersVariables(filter: filter),
+      parse: ListUsersData.fromJson,
+    );
 
 /// Runs `ListUsers` with typed variables and data.
 extension ListUsersOperation on GraphQLClient {
@@ -616,6 +637,12 @@ fragment UserFields on User {
   name
 }
 ''';
+
+/// `OnUserAdded` as a typed operation, e.g. for `GraphQLQuery.operation`.
+TypedOperation<OnUserAddedData> onUserAddedOperation() => TypedOperation(
+      document: onUserAddedDocument,
+      parse: OnUserAddedData.fromJson,
+    );
 
 /// Runs `OnUserAdded` with typed variables and data.
 extension OnUserAddedOperation on GraphQLClient {

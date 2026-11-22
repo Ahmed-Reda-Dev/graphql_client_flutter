@@ -19,8 +19,10 @@ import 'cassette.dart';
 /// ```
 ///
 /// Responses, GraphQL errors, transport failures and subscription events
-/// are recorded; request headers never are. Requests whose variables are
-/// not JSON (file uploads) are passed through but not recorded.
+/// are recorded; request headers never are. Variables and responses are
+/// saved as sent: record with test accounts (see [Cassette]). Requests
+/// whose variables are not JSON (file uploads) are passed through but not
+/// recorded.
 final class RecordingTransport implements GraphQLTransport {
   /// Records what [inner] answers, adding to [cassette] if given.
   RecordingTransport(this.inner, {Cassette? cassette})
@@ -48,19 +50,44 @@ final class RecordingTransport implements GraphQLTransport {
     }
   }
 
-  /// Records the events received until the subscription ends or is
-  /// cancelled.
+  /// Records the events received until the subscription ends, fails
+  /// (the failure is recorded too) or is cancelled. A subscription
+  /// cancelled before any event is not recorded.
   @override
-  Stream<GraphQLResponse> subscribe(GraphQLRequest request) async* {
+  Stream<GraphQLResponse> subscribe(GraphQLRequest request) {
     final events = <GraphQLResponse>[];
-    try {
-      await for (final event in inner.subscribe(request)) {
-        events.add(event);
-        yield event;
-      }
-    } finally {
-      _record(request, events: events);
+    var recorded = false;
+    void record([GraphQLException? error]) {
+      if (recorded) return;
+      recorded = true;
+      _record(request, events: events, error: error);
     }
+
+    StreamSubscription<GraphQLResponse>? subscription;
+    late final StreamController<GraphQLResponse> controller;
+    controller = StreamController<GraphQLResponse>(
+      onListen: () => subscription = inner.subscribe(request).listen(
+        (event) {
+          events.add(event);
+          controller.add(event);
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          if (error is GraphQLException) record(error);
+          controller.addError(error, stackTrace);
+        },
+        onDone: () {
+          record();
+          unawaited(controller.close());
+        },
+      ),
+      onPause: () => subscription?.pause(),
+      onResume: () => subscription?.resume(),
+      onCancel: () {
+        if (events.isNotEmpty) record();
+        return subscription?.cancel();
+      },
+    );
+    return controller.stream;
   }
 
   @override
@@ -73,9 +100,8 @@ final class RecordingTransport implements GraphQLTransport {
     GraphQLException? error,
   }) {
     if (!isJsonValue(request.variables)) return;
-    cassette.add(CassetteEntry(
-      operationName: request.operationName,
-      variables: request.variables,
+    cassette.add(CassetteEntry.of(
+      request,
       response: response,
       events: events,
       error: error,

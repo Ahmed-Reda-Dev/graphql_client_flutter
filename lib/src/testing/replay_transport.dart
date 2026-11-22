@@ -16,9 +16,10 @@ import 'cassette.dart';
 /// );
 /// ```
 ///
-/// Requests are matched by operation name and variables. When the same
-/// request was recorded several times, the answers are replayed in order,
-/// then the last one repeats. A request that was not recorded fails with a
+/// Requests are matched by operation name, variables and query text (so a
+/// query edited since it was recorded asks to be recorded again). When the
+/// same request was recorded several times, the answers are replayed in
+/// order, then the last one repeats. A request that was not recorded fails with a
 /// [GraphQLException] listing what was.
 final class ReplayTransport implements GraphQLTransport {
   /// Replays [cassette].
@@ -38,6 +39,13 @@ final class ReplayTransport implements GraphQLTransport {
     GraphQLRequest request, {
     CancellationToken? cancelToken,
   }) async {
+    if (cancelToken?.isCancelled ?? false) {
+      throw GraphQLException(
+        GraphQLErrorKind.cancelled,
+        'The request was cancelled',
+        operationName: request.operationName,
+      );
+    }
     final entry = _next(request);
     if (entry.error case final error?) throw error;
     if (entry.response case final response?) return response;
@@ -47,12 +55,12 @@ final class ReplayTransport implements GraphQLTransport {
   @override
   Stream<GraphQLResponse> subscribe(GraphQLRequest request) async* {
     final entry = _next(request);
-    if (entry.error case final error?) throw error;
     if (entry.events case final events?) {
       yield* Stream.fromIterable(events);
     } else if (entry.response case final response?) {
       yield response;
     }
+    if (entry.error case final error?) throw error;
   }
 
   @override
@@ -62,7 +70,13 @@ final class ReplayTransport implements GraphQLTransport {
     _requests.add(request);
     final candidates = cassette.entries.where((e) => e.matches(request));
     if (candidates.isEmpty) {
-      throw _mismatch(request, 'has no recorded response');
+      final changed = cassette.entries.any((e) => e.sameOperation(request));
+      throw _mismatch(
+        request,
+        changed
+            ? 'was recorded, but its query changed since'
+            : 'has no recorded response',
+      );
     }
     final entry = candidates.firstWhere(
       (e) => !_played.contains(e),

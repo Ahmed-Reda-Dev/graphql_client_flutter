@@ -12,8 +12,12 @@ import 'buffered_store.dart';
 /// IndexedDB holds far more than `localStorage` (typically hundreds of MB,
 /// depending on the browser and free disk space). Where it is unavailable
 /// (some private modes, sandboxed iframes), the store falls back to
-/// `localStorage`, limited to about 5 MB. Data saved by earlier versions in
-/// `localStorage` is moved to IndexedDB on first open.
+/// `localStorage`, limited to about 5 MB. A snapshot found in
+/// `localStorage` (saved by versions before 2.4, or by a session that fell
+/// back) is the newest one, so it is moved into IndexedDB on open.
+///
+/// Each open store holds the whole cache in memory, so two tabs using the
+/// same store name overwrite each other's saved data (the last write wins).
 ///
 /// All entities are loaded into memory by [open]; changes are written back
 /// after `writeDelay` (batched). A write that fails (e.g. over quota) is
@@ -44,12 +48,7 @@ final class PersistentStore extends BufferedStore {
   }) async {
     BufferedStore.checkName(name);
     final key = 'graphql_client_flutter.$name';
-    final storage = await _IndexedDbStorage.open(key) ?? _LocalStorage(key);
-
-    var saved = await storage.read();
-    if (saved == null && storage is _IndexedDbStorage) {
-      saved = await _moveFromLocalStorage(key, storage);
-    }
+    final (storage, saved) = await _openStorage(key);
     var data = saved == null ? null : BufferedStore.decode(saved, codec);
     if (saved != null && data == null) await storage.remove();
     data ??= {};
@@ -63,16 +62,17 @@ final class PersistentStore extends BufferedStore {
     );
   }
 
-  /// Moves a snapshot saved by versions before 2.4 into IndexedDB.
-  static Future<String?> _moveFromLocalStorage(
-    String key,
-    _IndexedDbStorage storage,
-  ) async {
-    final legacy = web.window.localStorage.getItem(key);
-    if (legacy == null) return null;
-    await storage.write(legacy);
-    web.window.localStorage.removeItem(key);
-    return legacy;
+  /// IndexedDB if it works, else `localStorage`, with the saved snapshot.
+  static Future<(_WebStorage, String?)> _openStorage(String key) async {
+    if (await _IndexedDbStorage.open(key) case final indexedDb?) {
+      try {
+        return (indexedDb, await indexedDb.readAdoptingLocalStorage());
+      } on StateError {
+        indexedDb.close(); // Opened but unusable (e.g. no quota): fall back.
+      }
+    }
+    final local = _LocalStorage(key);
+    return (local, await local.read());
   }
 
   final _WebStorage _storage;
@@ -120,10 +120,23 @@ final class _IndexedDbStorage implements _WebStorage {
     }).toJS;
     try {
       final db = await _complete(request) as web.IDBDatabase;
+      // Let a future schema upgrade in another tab proceed.
+      db.onversionchange = ((web.Event _) => db.close()).toJS;
       return _IndexedDbStorage._(db, key);
     } on StateError {
       return null;
     }
+  }
+
+  /// Reads the snapshot. One left in `localStorage` is newer (written by a
+  /// version before 2.4, or by a session that had to fall back), so it is
+  /// moved in first; it is removed only once IndexedDB holds it.
+  Future<String?> readAdoptingLocalStorage() async {
+    final local = web.window.localStorage.getItem(_key);
+    if (local == null) return read();
+    await write(local);
+    web.window.localStorage.removeItem(_key);
+    return local;
   }
 
   @override
@@ -150,18 +163,14 @@ final class _IndexedDbStorage implements _WebStorage {
   Future<void> _commit(void Function(web.IDBObjectStore store) change) {
     final transaction = _db.transaction(_objectStore.toJS, 'readwrite');
     final done = Completer<void>();
-    void fail(web.Event _) {
-      if (done.isCompleted) return;
-      done.completeError(StateError(
-        'IndexedDB write failed: '
-        '${transaction.error?.message ?? 'transaction aborted'}',
-      ));
-    }
-
+    // A failed request aborts the transaction; by then `error` holds the
+    // cause (e.g. QuotaExceededError).
     transaction
       ..oncomplete = ((web.Event _) => done.complete()).toJS
-      ..onerror = fail.toJS
-      ..onabort = fail.toJS;
+      ..onabort = ((web.Event _) => done.completeError(StateError(
+            'IndexedDB write failed: '
+            '${transaction.error?.message ?? 'transaction aborted'}',
+          ))).toJS;
     change(transaction.objectStore(_objectStore));
     return done.future;
   }

@@ -107,6 +107,24 @@ void main() {
       expect(response.data, {'a': 1});
     });
 
+    test('decodes large responses (in a background isolate)', () async {
+      final items = [
+        for (var i = 0; i < 3000; i++) {'id': '$i', 'name': 'Item number $i'},
+      ];
+      final adapter = FakeHttpAdapter((_, __) => FakeReply({
+            'data': {'items': items},
+          }));
+      final body = jsonEncode({
+        'data': {'items': items},
+      });
+      expect(body.length, greaterThan(50 * 1024)); // Over the threshold.
+
+      final response = await transport(adapter).execute(request('{ items }'));
+
+      expect(response.data?['items'], hasLength(3000));
+      expect((response.data?['items'] as List).last, items.last);
+    });
+
     test('sends queries as GET when enabled, mutations still POST', () async {
       final adapter = FakeHttpAdapter((_, __) => ok({'a': 1}));
       final http = transport(adapter, useGetForQueries: true);

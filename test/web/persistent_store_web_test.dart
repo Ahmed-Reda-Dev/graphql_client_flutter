@@ -81,6 +81,25 @@ void main() {
     expect((await open()).get('User:1'), {'name': 'Legacy'});
   });
 
+  test('a newer snapshot left in localStorage by a fallback session wins',
+      () async {
+    final store = await open()
+      ..put('User:1', {'name': 'Old'});
+    await store.flush();
+    await store.close();
+    // A later session could not use IndexedDB and saved here instead.
+    web.window.localStorage.setItem(
+      'graphql_client_flutter.$name',
+      '{"User:1":{"name":"Newer"}}',
+    );
+
+    final reopened = await open();
+
+    expect(reopened.get('User:1'), {'name': 'Newer'});
+    expect(web.window.localStorage.getItem('graphql_client_flutter.$name'),
+        isNull);
+  });
+
   test('stores are isolated by name', () async {
     final a = await open('${name}_a')
       ..put('User:1', {'name': 'A'});

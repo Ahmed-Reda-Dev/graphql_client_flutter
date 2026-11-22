@@ -2,6 +2,8 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:developer' as developer;
 
+import 'package:dio/dio.dart' show MultipartFile;
+
 import '../client/graphql_observer.dart';
 import '../json.dart';
 import '../request/graphql_request.dart';
@@ -213,8 +215,23 @@ final class DevToolsObserver extends GraphQLObserver {
         'time': DateTime.now().toIso8601String(),
         'type': request.type.name,
         'operationName': request.operationName,
-        'variables': request.variables,
+        'variables': jsonSafe(request.variables),
         'document': request.document.printed,
+      };
+
+  /// [value] with everything JSON cannot encode replaced by a description,
+  /// at any depth. DevTools receives events as JSON, so a file upload's
+  /// `MultipartFile` is shown as `<file name, N bytes>`.
+  static Object? jsonSafe(Object? value) => switch (value) {
+        null || bool() || num() || String() => value,
+        MultipartFile(:final filename, :final length) =>
+          '<file ${filename ?? 'unnamed'}, $length bytes>',
+        final Map<dynamic, dynamic> map => <String, Object?>{
+            for (final MapEntry(:key, :value) in map.entries)
+              '$key': jsonSafe(value),
+          },
+        final List<dynamic> list => [for (final item in list) jsonSafe(item)],
+        _ => '$value',
       };
 }
 

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:graphql_client_flutter/graphql_client_flutter.dart';
 import 'package:graphql_client_flutter/src/core/devtools/devtools_bridge.dart';
@@ -76,5 +78,34 @@ void main() {
 
   test('unknown methods are rejected', () {
     expect(() => bridge.handle('nope', const {}), throwsArgumentError);
+  });
+
+  // DevTools receives events as JSON, but only while it is connected, so a
+  // value JSON cannot encode only fails then. Every event must encode.
+  test('a file upload is recorded as JSON, naming the file', () async {
+    final mock = MockTransport()
+      ..on('Upload').reply({
+        'upload': {'__typename': 'File', 'id': '1'},
+      });
+    final client = GraphQLClient.custom(transport: mock);
+    addTearDown(client.dispose);
+
+    await client.mutate<JsonMap>(
+      r'mutation Upload($file: Upload!, $tags: [String!], $more: [Upload!]) '
+      r'{ upload(file: $file, tags: $tags, more: $more) { id } }',
+      variables: {
+        'file': MultipartFile.fromString('receipt', filename: 'receipt.png'),
+        'tags': ['a'],
+        'more': [MultipartFile.fromString('ab', filename: 'b.jpg')],
+      },
+    );
+
+    final events = operations();
+    expect(events.map((e) => e['status']), ['pending', 'success']);
+    expect(() => jsonEncode(events), returnsNormally);
+    final variables = events.first['variables'] as JsonMap;
+    expect(variables['file'], '<file receipt.png, 7 bytes>');
+    expect(variables['tags'], ['a']);
+    expect(variables['more'], ['<file b.jpg, 2 bytes>']);
   });
 }

@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.2]
+
+### Fixed
+- A file upload no longer throws `Converting object to an encodable object failed: Instance of 'MultipartFile'` in debug builds while Dart DevTools is connected. The DevTools extension received the request's variables as they were, and DevTools events must be JSON. Files now appear in DevTools as `<file name, N bytes>`, in lists and nested inputs too. The request itself was never affected, and release builds don't include the DevTools integration.
+
 ## [2.6.1]
 
 ### Fixed

@@ -19,3 +19,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+# Typed code for lib/**/*.graphql: dart run graphql_client_flutter:generate
+graphql_client_flutter:
+  schema: lib/graphql/schema.graphql

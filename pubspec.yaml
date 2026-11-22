@@ -1,8 +1,8 @@
 name: graphql_client_flutter
 description: >-
-  The simple, typed GraphQL client for Flutter: one-line setup, normalized
-  cache, widgets, auth refresh, subscriptions, offline store and a testing kit.
-version: 2.4.0
+  The simple, typed GraphQL client for Flutter: normalized cache, widgets,
+  auth refresh, subscriptions, offline queue, codegen without build_runner.
+version: 2.5.0
 homepage: https://github.com/Ahmed-Reda-Dev/graphql_client_flutter
 repository: https://github.com/Ahmed-Reda-Dev/graphql_client_flutter
 issue_tracker: https://github.com/Ahmed-Reda-Dev/graphql_client_flutter/issues
@@ -13,7 +13,7 @@ topics:
   - api
   - network
   - cache
-  - websocket
+  - codegen
 
 screenshots:
   - description: Example app in light mode, with a live data badge.
@@ -42,10 +42,12 @@ dependencies:
   gql: ^1.0.1
   meta: ^1.19.0
   normalize: ^0.10.0
+  path: ^1.9.0
   path_provider: ^2.1.5
   source_span: ^1.10.2
   web: ^1.1.2
   web_socket_channel: ^3.0.1
+  yaml: ^3.1.0
 
 dev_dependencies:
   flutter_test:

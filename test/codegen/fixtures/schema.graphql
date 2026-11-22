@@ -1,0 +1,84 @@
+"""An ISO-8601 date and time."""
+scalar DateTime
+scalar JSON
+
+type Query {
+  user(id: ID!): User
+  users(filter: UserFilter, first: Int = 20): [User!]!
+  search(term: String!): [SearchResult!]!
+  node(id: ID!): Node
+  entries: [Entry!]!
+}
+
+type Mutation {
+  createUser(input: CreateUserInput!): User!
+  renameUser(id: ID!, name: String!): User
+}
+
+type Subscription {
+  userAdded: User!
+}
+
+interface Node {
+  id: ID!
+}
+
+"""Someone with an account."""
+type User implements Node {
+  id: ID!
+  name: String!
+  email: String
+  role: Role!
+  createdAt: DateTime!
+  avatar: Image
+  tags: [String!]!
+  scores: [Float]
+  metadata: JSON
+  friends(first: Int = 10): [User]
+}
+
+type Image {
+  url: String!
+  width: Int
+}
+
+type Post implements Node & Entry {
+  id: ID!
+  title: String!
+  author: User!
+  owner: User!
+}
+
+type Comment implements Entry {
+  id: ID!
+  owner: User!
+  text: String!
+}
+
+interface Entry {
+  id: ID!
+  owner: User!
+}
+
+union SearchResult = User | Post
+
+"""What a user may do."""
+enum Role {
+  ADMIN
+  SUPER_USER
+  """Read-only access."""
+  GUEST
+}
+
+input CreateUserInput {
+  name: String!
+  role: Role = GUEST
+  tags: [String!]
+  birthday: DateTime
+  filter: UserFilter
+}
+
+input UserFilter {
+  role: Role
+  nameContains: String
+}
